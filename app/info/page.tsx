@@ -10,9 +10,9 @@ const STORAGE_KEY = "applepayprank-config";
 export default function InfoPage() {
   const router = useRouter();
 
-  const [pranksterName, setPranksterName] = useState("You");      // receiver (you)
-  const [friendName, setFriendName] = useState("Dorian");         // friend sending money
-  const [amount, setAmount] = useState("27.43");                  // fixed prank amount
+  const [pranksterName, setPranksterName] = useState("You"); // receiver (you)
+  const [friendName, setFriendName] = useState("Dorian"); // friend sending money
+  const [amount, setAmount] = useState("27.43"); // fixed prank amount
 
   // Load saved config (if any)
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function InfoPage() {
             marginBottom: "0.5rem",
           }}
         >
-          Transfer Preview
+          Prank Preview
         </div>
         <div
           style={{
@@ -130,8 +130,9 @@ export default function InfoPage() {
             color: "#6b7280",
           }}
         >
-          From <strong>{friendName || "Friend"}</strong> to{" "}
-          <strong>{pranksterName || "You"}</strong>
+          You&apos;ll appear to receive{" "}
+          <strong>${amount || "0.00"}</strong> from{" "}
+          <strong>{friendName || "Friend"}</strong>.
         </div>
       </section>
 
@@ -171,7 +172,7 @@ export default function InfoPage() {
                 color: "#6b7280",
               }}
             >
-              How much should the prank say was sent
+              How much should the prank say was sent.
             </div>
           </div>
           <div
@@ -195,7 +196,8 @@ export default function InfoPage() {
                 outline: "none",
                 textAlign: "right",
                 fontSize: "16px",
-                width: 70,
+                width: 80,
+                background: "transparent",
               }}
             />
           </div>
@@ -229,6 +231,7 @@ export default function InfoPage() {
               outline: "none",
               fontSize: "16px",
               padding: "4px 0",
+              background: "transparent",
             }}
           />
           <div
@@ -268,6 +271,7 @@ export default function InfoPage() {
               outline: "none",
               fontSize: "16px",
               padding: "4px 0",
+              background: "transparent",
             }}
           />
           <div
