@@ -22,8 +22,8 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   {
     id: "1",
     title: "Debit Card",
-    subtitle: "Added to Balance • 56 minutes ago",
-    amount: 50,
+    subtitle: "Added to Balance • 41 minutes ago",
+    amount: 207,
     direction: "in",
     timeLabel: "",
   },
@@ -195,10 +195,10 @@ export function WalletScreen() {
           >
             <span
               style={{
-                fontSize: 18,
+                fontSize: 22, // bigger top title
                 fontWeight: 600,
                 color: "#111827",
-                letterSpacing: 0.3,
+                letterSpacing: 0.35,
               }}
             >
               {"\uF8FF"} Pay
@@ -249,7 +249,7 @@ export function WalletScreen() {
             overflow: "hidden",
             cursor: "pointer",
             width: "100%",
-            height: 210, // fixed, card-like height instead of aspectRatio
+            height: 210, // fixed, card-like height
           }}
         >
           {/* dotted overlay */}
@@ -279,22 +279,21 @@ export function WalletScreen() {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
-                marginBottom: "0.6rem",
               }}
             >
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
-                  gap: 6,
+                  gap: 8,
                 }}
               >
-                <span style={{ fontSize: 22 }}>{"\uF8FF"}</span>
+                <span style={{ fontSize: 26 }}>{"\uF8FF"}</span>
                 <span
                   style={{
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: 600,
-                    letterSpacing: 0.4,
+                    letterSpacing: 0.5,
                   }}
                 >
                   Cash
@@ -311,47 +310,47 @@ export function WalletScreen() {
               </div>
             </div>
 
-            {/* middle: cardholder */}
-            <div style={{ marginBottom: "0.4rem" }}>
+            {/* bottom: balance + cardholder aligned right */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+                marginTop: "auto",
+              }}
+            >
+              {/* big balance on left (no "Balance" label) */}
               <div
                 style={{
-                  fontSize: 11,
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  opacity: 0.75,
-                  marginBottom: 2,
-                }}
-              >
-                Cardholder
-              </div>
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 500,
-                }}
-              >
-                {cardHolderName}
-              </div>
-            </div>
-
-            {/* bottom: balance */}
-            <div>
-              <div
-                style={{
-                  fontSize: "0.8rem",
-                  opacity: 0.8,
-                }}
-              >
-                Balance
-              </div>
-              <div
-                style={{
-                  fontSize: "2.0rem",
+                  fontSize: "2.2rem",
                   fontWeight: 600,
                   letterSpacing: 0.3,
                 }}
               >
                 ${displayBalance.toFixed(2)}
+              </div>
+
+              {/* cardholder bottom-right */}
+              <div style={{ textAlign: "right" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: 1,
+                    opacity: 0.75,
+                    marginBottom: 2,
+                  }}
+                >
+                  Cardholder
+                </div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 500,
+                  }}
+                >
+                  {cardHolderName}
+                </div>
               </div>
             </div>
           </div>
