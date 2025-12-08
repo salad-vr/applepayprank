@@ -65,252 +65,298 @@ export default function InfoPage() {
         fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
       }}
     >
-      {/* Top bar */}
-      <header
+      {/* Centered phone window so it feels like the main app */}
+      <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "0.75rem",
+          maxWidth: 480,
+          margin: "0 auto",
         }}
       >
-        <button
-          onClick={handleCancel}
+        {/* Top bar with  Pay title, like main screen */}
+        <header
           style={{
-            background: "none",
-            border: "none",
-            color: "#000",
-            fontSize: "17px",
-            fontWeight: 500,
-          }}
-        >
-          Done
-        </button>
-        <div style={{ fontSize: "15px", fontWeight: 600, color: "#111" }}>
-          Prank Settings
-        </div>
-        {/* spacer to balance Done text */}
-        <div style={{ width: 40 }} />
-      </header>
-
-      {/* Card-ish container */}
-      <section
-        style={{
-          borderRadius: 16,
-          backgroundColor: "#fff",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          padding: "0.75rem 0.9rem",
-          marginBottom: "1.0rem",
-        }}
-      >
-        <div
-          style={{
-            fontSize: "13px",
-            fontWeight: 500,
-            textTransform: "uppercase",
-            letterSpacing: 0.4,
-            color: "#6b7280",
-            marginBottom: "0.5rem",
-          }}
-        >
-          Prank Preview
-        </div>
-        <div
-          style={{
-            fontSize: "28px",
-            fontWeight: 600,
-            marginBottom: "0.15rem",
-          }}
-        >
-          ${amount || "0.00"}
-        </div>
-        <div
-          style={{
-            fontSize: "13px",
-            color: "#6b7280",
-          }}
-        >
-          You&apos;ll appear to receive{" "}
-          <strong>${amount || "0.00"}</strong> from{" "}
-          <strong>{friendName || "Friend"}</strong>.
-        </div>
-      </section>
-
-      {/* Form card */}
-      <section
-        style={{
-          borderRadius: 16,
-          backgroundColor: "#fff",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          overflow: "hidden",
-        }}
-      >
-        {/* Amount */}
-        <div
-          style={{
-            padding: "0.75rem 0.9rem",
-            borderBottom: "1px solid #e5e7eb",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            gap: "0.75rem",
+            marginBottom: "0.5rem",
+            position: "relative",
           }}
         >
-          <div>
+          <button
+            onClick={handleCancel}
+            style={{
+              background: "none",
+              border: "none",
+              color: "#000",
+              fontSize: "17px",
+              fontWeight: 500,
+            }}
+          >
+            Done
+          </button>
+
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              textAlign: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: "#111827",
+                letterSpacing: 0.3,
+              }}
+            >
+              {"\uF8FF"} Pay
+            </span>
+          </div>
+
+          {/* spacer to balance Done text */}
+          <div style={{ width: 40 }} />
+        </header>
+
+        {/* Small section title */}
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#6b7280",
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+            margin: "0.25rem 0 0.5rem 0.15rem",
+          }}
+        >
+          Prank Settings
+        </div>
+
+        {/* Prank preview card */}
+        <section
+          style={{
+            borderRadius: 16,
+            backgroundColor: "#fff",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            padding: "0.75rem 0.9rem",
+            marginBottom: "1.0rem",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "13px",
+              fontWeight: 500,
+              textTransform: "uppercase",
+              letterSpacing: 0.4,
+              color: "#6b7280",
+              marginBottom: "0.35rem",
+            }}
+          >
+            Prank Preview
+          </div>
+          <div
+            style={{
+              fontSize: "28px",
+              fontWeight: 600,
+              marginBottom: "0.15rem",
+            }}
+          >
+            ${amount || "0.00"}
+          </div>
+          <div
+            style={{
+              fontSize: "13px",
+              color: "#6b7280",
+            }}
+          >
+            You&apos;ll appear to receive{" "}
+            <strong>${amount || "0.00"}</strong> from{" "}
+            <strong>{friendName || "Friend"}</strong>.
+          </div>
+        </section>
+
+        {/* Form card – iOS-style list */}
+        <section
+          style={{
+            borderRadius: 16,
+            backgroundColor: "#fff",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Amount row */}
+          <div
+            style={{
+              padding: "0.75rem 0.9rem",
+              borderBottom: "1px solid #e5e7eb",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "0.75rem",
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: "15px",
+                  color: "#111827",
+                  marginBottom: 2,
+                }}
+              >
+                Amount
+              </div>
+              <div
+                style={{
+                  fontSize: "12px",
+                  color: "#6b7280",
+                }}
+              >
+                How much should the prank say was sent.
+              </div>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                minWidth: 100,
+                justifyContent: "flex-end",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>$</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                pattern="[0-9]*"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="27.43"
+                style={{
+                  border: "none",
+                  outline: "none",
+                  textAlign: "right",
+                  fontSize: "16px",
+                  width: 80,
+                  background: "transparent",
+                  color: "#111827", // always solid text
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Friend name (payer) */}
+          <div
+            style={{
+              padding: "0.75rem 0.9rem",
+              borderBottom: "1px solid #e5e7eb",
+              display: "flex",
+              flexDirection: "column",
+              gap: 4,
+            }}
+          >
             <div
               style={{
                 fontSize: "15px",
                 color: "#111827",
-                marginBottom: 2,
               }}
             >
-              Amount
+              Friend&apos;s name
             </div>
+            <input
+              type="text"
+              placeholder="Dorian"
+              value={friendName}
+              onChange={(e) => setFriendName(e.target.value)}
+              style={{
+                border: "none",
+                outline: "none",
+                fontSize: "16px",
+                padding: "4px 0",
+                background: "transparent",
+                color: "#111827", // solid black text
+              }}
+            />
             <div
               style={{
                 fontSize: "12px",
                 color: "#6b7280",
               }}
             >
-              How much should the prank say was sent.
+              This is who it looks like the money is coming from.
             </div>
           </div>
+
+          {/* Your name (receiver) */}
           <div
             style={{
+              padding: "0.75rem 0.9rem",
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
               gap: 4,
-              minWidth: 90,
-              justifyContent: "flex-end",
             }}
           >
-            <span style={{ fontSize: 16 }}>$</span>
+            <div
+              style={{
+                fontSize: "15px",
+                color: "#111827",
+              }}
+            >
+              Your name
+            </div>
             <input
-              type="number"
-              inputMode="decimal"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              type="text"
+              placeholder="You"
+              value={pranksterName}
+              onChange={(e) => setPranksterName(e.target.value)}
               style={{
                 border: "none",
                 outline: "none",
-                textAlign: "right",
                 fontSize: "16px",
-                width: 80,
+                padding: "4px 0",
                 background: "transparent",
+                color: "#111827", // solid black text
               }}
             />
+            <div
+              style={{
+                fontSize: "12px",
+                color: "#6b7280",
+              }}
+            >
+              This is who it looks like the money was sent to.
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Friend name (payer) */}
+        {/* Save button */}
         <div
           style={{
-            padding: "0.75rem 0.9rem",
-            borderBottom: "1px solid #e5e7eb",
+            marginTop: "1.25rem",
             display: "flex",
-            flexDirection: "column",
-            gap: 4,
+            justifyContent: "center",
           }}
         >
-          <div
+          <button
+            onClick={handleSave}
             style={{
-              fontSize: "15px",
-              color: "#111827",
-            }}
-          >
-            Friend&apos;s name
-          </div>
-          <input
-            type="text"
-            placeholder="Dorian"
-            value={friendName}
-            onChange={(e) => setFriendName(e.target.value)}
-            style={{
+              minWidth: 160,
+              padding: "0.6rem 1.5rem",
+              borderRadius: 999,
               border: "none",
-              outline: "none",
               fontSize: "16px",
-              padding: "4px 0",
-              background: "transparent",
-            }}
-          />
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#6b7280",
+              fontWeight: 500,
+              background:
+                "linear-gradient(135deg, #34c759 0%, #30b0ff 40%, #5856d6 100%)",
+              color: "#fff",
+              boxShadow: "0 6px 12px rgba(0,0,0,0.18)",
+              cursor: "pointer",
             }}
           >
-            This is who it looks like the money is coming from.
-          </div>
+            Save & Return
+          </button>
         </div>
-
-        {/* Your name (receiver) */}
-        <div
-          style={{
-            padding: "0.75rem 0.9rem",
-            display: "flex",
-            flexDirection: "column",
-            gap: 4,
-          }}
-        >
-          <div
-            style={{
-              fontSize: "15px",
-              color: "#111827",
-            }}
-          >
-            Your name
-          </div>
-          <input
-            type="text"
-            placeholder="You"
-            value={pranksterName}
-            onChange={(e) => setPranksterName(e.target.value)}
-            style={{
-              border: "none",
-              outline: "none",
-              fontSize: "16px",
-              padding: "4px 0",
-              background: "transparent",
-            }}
-          />
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#6b7280",
-            }}
-          >
-            This is who it looks like the money was sent to.
-          </div>
-        </div>
-      </section>
-
-      {/* Save button */}
-      <div
-        style={{
-          marginTop: "1.25rem",
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
-        <button
-          onClick={handleSave}
-          style={{
-            minWidth: 160,
-            padding: "0.6rem 1.5rem",
-            borderRadius: 999,
-            border: "none",
-            fontSize: "16px",
-            fontWeight: 500,
-            background:
-              "linear-gradient(135deg, #34c759 0%, #30b0ff 40%, #5856d6 100%)",
-            color: "#fff",
-            boxShadow: "0 6px 12px rgba(0,0,0,0.18)",
-            cursor: "pointer",
-          }}
-        >
-          Save & Return
-        </button>
       </div>
     </main>
   );
