@@ -7,7 +7,7 @@ import type { PrankConfig } from "./types";
 type Status = "idle" | "countdown" | "completed";
 
 type Options = {
-  onPlaySound?: () => void; // ignored for now but kept for future use
+  onPlaySound?: () => void;
 };
 
 export function usePrankEngine(
@@ -36,7 +36,10 @@ export function usePrankEngine(
 
     // Determine prank amount
     let amount = 20;
-    if (config.amountMode === "fixed" && typeof config.fixedAmount === "number") {
+    if (
+      config.amountMode === "fixed" &&
+      typeof config.fixedAmount === "number"
+    ) {
       amount = config.fixedAmount;
     } else if (
       config.amountMode === "range" &&
@@ -52,11 +55,11 @@ export function usePrankEngine(
     setStatus("countdown");
 
     // Countdown: baseBalance → 100
-    const start = baseBalance;      // usually 105
-    const end = 100;                // where countdown stops
+    const start = baseBalance; // e.g. 105
+    const end = 100; // where countdown stops
     let current = start;
 
-    const steps = start - end;      // e.g. 105 → 100 = 5 steps
+    const steps = start - end; // e.g. 105 → 100 = 5 steps
 
     setDisplayBalance(start);
     setCountdownRemaining(steps);
@@ -77,7 +80,11 @@ export function usePrankEngine(
         setStatus("completed");
         setCountdownRemaining(null);
 
-        // ✨ FINAL STEP:
+        // 🔊 play sound right at 100 (if provided)
+        if (options?.onPlaySound) {
+          options.onPlaySound();
+        }
+
         // After a tiny pause, ADD the prank amount to 100
         setTimeout(() => {
           const finalBalance = Number((end + amount).toFixed(2));
