@@ -136,6 +136,15 @@ export function WalletScreen() {
 
   const cardHolderName = config.pranksterName || "Cash";
 
+  // helper to decide which icon to show on the left
+  function getTxIcon(tx: Transaction): string {
+    if (tx.isPrank) return "⇄";
+    const isDebit = tx.title === "Debit Card";
+    const looksLikePhone = /^[+0-9()\-\s]+$/.test(tx.title);
+    if (isDebit || looksLikePhone) return "⇄";
+    return "$";
+  }
+
   return (
     <main
       style={{
@@ -145,291 +154,301 @@ export function WalletScreen() {
         fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
       }}
     >
-      {/* Top bar */}
-      <header
+      {/* Centered phone window like on /info so it sits nicely on iPhone */}
+      <div
         style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: "0.25rem",
-          position: "relative",
+          maxWidth: 480,
+          margin: "0 auto",
         }}
       >
-        <button
+        {/* Top bar */}
+        <header
           style={{
-            background: "none",
-            border: "none",
-            color: "#000", // black like iOS Wallet
-            fontSize: "17px",
-            fontWeight: 500,
-          }}
-        >
-          Done
-        </button>
-
-        {/* Center title:  Pay */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            textAlign: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: "#111827",
-              letterSpacing: 0.3,
-            }}
-          >
-            {"\uF8FF"} Pay
-          </span>
-        </div>
-
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          {/* Info button (black) */}
-          <button
-            onClick={handleInfoClick}
-            style={{
-              width: 24,
-              height: 24,
-              borderRadius: 999,
-              border: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-              fontWeight: 600,
-              backgroundColor: "#000",
-              color: "#fff",
-              padding: 0,
-              cursor: "pointer",
-            }}
-            aria-label="Info"
-          >
-            i
-          </button>
-        </div>
-      </header>
-
-      {/* Cash card */}
-      <section
-        onClick={handleCardClick}
-        style={{
-          marginTop: "0.7rem",
-          marginBottom: "1.2rem",
-          background:
-            "radial-gradient(circle at 30% 30%, #333 0, #111 40%, #000 70%)",
-          borderRadius: 22,
-          padding: "1.2rem 1.4rem",
-          color: "#fff",
-          position: "relative",
-          boxShadow: "0 16px 32px rgba(0,0,0,0.45)",
-          overflow: "hidden",
-          cursor: "pointer",
-          aspectRatio: "16 / 9", // more card-like on mobile
-          maxHeight: 210,
-        }}
-      >
-        {/* dotted overlay */}
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: 0.18,
-            backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)",
-            backgroundSize: "8px 8px",
-          }}
-        />
-
-        <div
-          style={{
-            position: "relative",
             display: "flex",
-            flexDirection: "column",
-            height: "100%",
+            alignItems: "center",
             justifyContent: "space-between",
+            marginBottom: "0.25rem",
+            position: "relative",
           }}
         >
-          {/* top row: fake Apple logo + Cash, and card number */}
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              color: "#000", // black like iOS Wallet
+              fontSize: "17px",
+              fontWeight: 500,
+            }}
+          >
+            Done
+          </button>
+
+          {/* Center title:  Pay */}
           <div
             style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "0.6rem",
+              position: "absolute",
+              left: 0,
+              right: 0,
+              textAlign: "center",
+              pointerEvents: "none",
             }}
           >
+            <span
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: "#111827",
+                letterSpacing: 0.3,
+              }}
+            >
+              {"\uF8FF"} Pay
+            </span>
+          </div>
+
+          <div
+            style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}
+          >
+            {/* Info button (black) */}
+            <button
+              onClick={handleInfoClick}
+              style={{
+                width: 24,
+                height: 24,
+                borderRadius: 999,
+                border: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 14,
+                fontWeight: 600,
+                backgroundColor: "#000",
+                color: "#fff",
+                padding: 0,
+                cursor: "pointer",
+              }}
+              aria-label="Info"
+            >
+              i
+            </button>
+          </div>
+        </header>
+
+        {/* Cash card */}
+        <section
+          onClick={handleCardClick}
+          style={{
+            marginTop: "0.7rem",
+            marginBottom: "1.2rem",
+            background:
+              "radial-gradient(circle at 30% 30%, #333 0, #111 40%, #000 70%)",
+            borderRadius: 22,
+            padding: "1.2rem 1.4rem",
+            color: "#fff",
+            position: "relative",
+            boxShadow: "0 16px 32px rgba(0,0,0,0.45)",
+            overflow: "hidden",
+            cursor: "pointer",
+            width: "100%",
+            height: 210, // fixed, card-like height instead of aspectRatio
+          }}
+        >
+          {/* dotted overlay */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: 0.18,
+              backgroundImage:
+                "radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)",
+              backgroundSize: "8px 8px",
+            }}
+          />
+
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              justifyContent: "space-between",
+            }}
+          >
+            {/* top row: fake Apple logo + Cash, and card number */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 6,
+                justifyContent: "space-between",
+                marginBottom: "0.6rem",
               }}
             >
-              <span style={{ fontSize: 22 }}>{"\uF8FF"}</span>
-              <span
-                style={{
-                  fontSize: 16,
-                  fontWeight: 600,
-                  letterSpacing: 0.4,
-                }}
-              >
-                Cash
-              </span>
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                letterSpacing: 2,
-                opacity: 0.85,
-              }}
-            >
-              •••• 6767
-            </div>
-          </div>
-
-          {/* middle: cardholder */}
-          <div style={{ marginBottom: "0.4rem" }}>
-            <div
-              style={{
-                fontSize: 11,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-                opacity: 0.75,
-                marginBottom: 2,
-              }}
-            >
-              Cardholder
-            </div>
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 500,
-              }}
-            >
-              {cardHolderName}
-            </div>
-          </div>
-
-          {/* bottom: balance */}
-          <div>
-            <div
-              style={{
-                fontSize: "0.8rem",
-                opacity: 0.8,
-              }}
-            >
-              Balance
-            </div>
-            <div
-              style={{
-                fontSize: "2.0rem",
-                fontWeight: 600,
-                letterSpacing: 0.3,
-              }}
-            >
-              ${displayBalance.toFixed(2)}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Latest Transactions */}
-      <section>
-        <h2
-          style={{
-            fontSize: "1.0rem",
-            fontWeight: 600,
-            marginBottom: "0.4rem",
-            paddingInline: "0.25rem",
-            color: "#111", // darker label
-          }}
-        >
-          Latest Transactions
-        </h2>
-        <div
-          style={{
-            borderRadius: 16,
-            backgroundColor: "#fff",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            overflow: "hidden",
-          }}
-        >
-          {transactions.map((tx, index) => (
-            <button
-              key={tx.id}
-              onClick={() => handleTransactionClick(tx)}
-              style={{
-                display: "flex",
-                width: "100%",
-                padding: "0.75rem 0.9rem",
-                border: "none",
-                borderTop: index === 0 ? "none" : "1px solid #eee",
-                backgroundColor: "#fff",
-                textAlign: "left",
-                cursor: tx.isPrank ? "pointer" : "default",
-              }}
-            >
-              {/* left icon */}
               <div
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  backgroundColor: "#111",
-                  color: "#fff",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 18,
-                  marginRight: 10,
+                  gap: 6,
                 }}
               >
-                {tx.isPrank ? "⇄" : "$"}
+                <span style={{ fontSize: 22 }}>{"\uF8FF"}</span>
+                <span
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  Cash
+                </span>
               </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  letterSpacing: 2,
+                  opacity: 0.85,
+                }}
+              >
+                •••• 6767
+              </div>
+            </div>
 
-              {/* middle content */}
-              <div style={{ flex: 1 }}>
+            {/* middle: cardholder */}
+            <div style={{ marginBottom: "0.4rem" }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  textTransform: "uppercase",
+                  letterSpacing: 1,
+                  opacity: 0.75,
+                  marginBottom: 2,
+                }}
+              >
+                Cardholder
+              </div>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 500,
+                }}
+              >
+                {cardHolderName}
+              </div>
+            </div>
+
+            {/* bottom: balance */}
+            <div>
+              <div
+                style={{
+                  fontSize: "0.8rem",
+                  opacity: 0.8,
+                }}
+              >
+                Balance
+              </div>
+              <div
+                style={{
+                  fontSize: "2.0rem",
+                  fontWeight: 600,
+                  letterSpacing: 0.3,
+                }}
+              >
+                ${displayBalance.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Latest Transactions */}
+        <section>
+          <h2
+            style={{
+              fontSize: "1.0rem",
+              fontWeight: 600,
+              marginBottom: "0.4rem",
+              paddingInline: "0.25rem",
+              color: "#111", // darker label
+            }}
+          >
+            Latest Transactions
+          </h2>
+          <div
+            style={{
+              borderRadius: 16,
+              backgroundColor: "#fff",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+              overflow: "hidden",
+            }}
+          >
+            {transactions.map((tx, index) => (
+              <button
+                key={tx.id}
+                onClick={() => handleTransactionClick(tx)}
+                style={{
+                  display: "flex",
+                  width: "100%",
+                  padding: "0.75rem 0.9rem",
+                  border: "none",
+                  borderTop: index === 0 ? "none" : "1px solid #eee",
+                  backgroundColor: "#fff",
+                  textAlign: "left",
+                  cursor: tx.isPrank ? "pointer" : "default",
+                }}
+              >
+                {/* left icon */}
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    backgroundColor: "#111",
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 18,
+                    marginRight: 10,
+                  }}
+                >
+                  {getTxIcon(tx)}
+                </div>
+
+                {/* middle content */}
+                <div style={{ flex: 1 }}>
+                  <div
+                    style={{
+                      fontSize: "0.95rem",
+                      fontWeight: 500,
+                      marginBottom: 2,
+                      color: "#111", // darker text
+                    }}
+                  >
+                    {tx.title}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: "0.8rem",
+                      color: "#6b7280", // subtle but readable grey
+                    }}
+                  >
+                    {tx.subtitle}
+                  </div>
+                </div>
+
+                {/* right amount */}
                 <div
                   style={{
                     fontSize: "0.95rem",
                     fontWeight: 500,
-                    marginBottom: 2,
-                    color: "#111", // darker text
+                    color: tx.direction === "in" ? "#0a7a20" : "#000",
                   }}
                 >
-                  {tx.title}
+                  {tx.direction === "in" ? "+" : "-"}$
+                  {tx.amount.toFixed(2)}
                 </div>
-                <div
-                  style={{
-                    fontSize: "0.8rem",
-                    color: "#6b7280", // subtle but readable grey
-                  }}
-                >
-                  {tx.subtitle}
-                </div>
-              </div>
-
-              {/* right amount */}
-              <div
-                style={{
-                  fontSize: "0.95rem",
-                  fontWeight: 500,
-                  color: tx.direction === "in" ? "#0a7a20" : "#000",
-                }}
-              >
-                {tx.direction === "in" ? "+" : "-"}$
-                {tx.amount.toFixed(2)}
-              </div>
-            </button>
-          ))}
-        </div>
-      </section>
+              </button>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
