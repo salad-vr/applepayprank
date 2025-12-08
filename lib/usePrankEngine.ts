@@ -7,7 +7,7 @@ import type { PrankConfig } from "./types";
 type Status = "idle" | "countdown" | "completed";
 
 type Options = {
-  onPlaySound?: () => void;
+  onPlaySound?: () => void; // ignored for now but kept for future use
 };
 
 export function usePrankEngine(
@@ -34,11 +34,11 @@ export function usePrankEngine(
   const triggerPrank = useCallback(() => {
     if (status !== "idle") return;
 
-    // Decide how much we're "sending"
+    // Determine prank amount
     let amount = 20;
-    if (config.amountMode === "fixed" && typeof config.fixedAmount === "number")
+    if (config.amountMode === "fixed" && typeof config.fixedAmount === "number") {
       amount = config.fixedAmount;
-    else if (
+    } else if (
       config.amountMode === "range" &&
       typeof config.minAmount === "number" &&
       typeof config.maxAmount === "number"
@@ -50,32 +50,41 @@ export function usePrankEngine(
 
     setPrankAmount(amount);
     setStatus("countdown");
-    setCountdownRemaining(5);
-    setDisplayBalance(baseBalance);
 
-    const targetBalance = baseBalance - amount;
-    const steps = 5;
-    const stepSize = (baseBalance - targetBalance) / steps;
-    let ticks = 0;
+    // Countdown: baseBalance → 100
+    const start = baseBalance;      // usually 105
+    const end = 100;                // where countdown stops
+    let current = start;
+
+    const steps = start - end;      // e.g. 105 → 100 = 5 steps
+
+    setDisplayBalance(start);
+    setCountdownRemaining(steps);
+
+    clearTimer();
 
     intervalRef.current = setInterval(() => {
-      ticks += 1;
-      setCountdownRemaining(steps - ticks);
+      current -= 1;
 
-      setDisplayBalance((prev) => {
-        const next = prev - stepSize;
-        return Number(next.toFixed(2));
-      });
+      setDisplayBalance(current);
+      setCountdownRemaining((prev) =>
+        prev !== null ? prev - 1 : null
+      );
 
-      if (ticks >= steps) {
+      if (current <= end) {
+        // Countdown reached 100
         clearTimer();
         setStatus("completed");
         setCountdownRemaining(null);
 
-        // play sound
-        options?.onPlaySound?.();
+        // ✨ FINAL STEP:
+        // After a tiny pause, ADD the prank amount to 100
+        setTimeout(() => {
+          const finalBalance = Number((end + amount).toFixed(2));
+          setDisplayBalance(finalBalance);
+        }, 250);
 
-        // schedule SMS stub after ~12s
+        // SMS stub still fires after 12 seconds
         setTimeout(() => {
           console.log("🔔 [stub] would send prank SMS now", {
             config,
