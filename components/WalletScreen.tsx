@@ -43,6 +43,22 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
     direction: "in",
     timeLabel: "",
   },
+  {
+    id: "4",
+    title: "Apple Store",
+    subtitle: "Purchase • Yesterday",
+    amount: 4.99,
+    direction: "out",
+    timeLabel: "",
+  },
+  {
+    id: "5",
+    title: "Starbucks",
+    subtitle: "Purchase • 2 days ago",
+    amount: 6.45,
+    direction: "out",
+    timeLabel: "",
+  },
 ];
 
 export function WalletScreen() {
@@ -83,10 +99,11 @@ export function WalletScreen() {
 
         const prankTx: Transaction = {
           id: "prank",
-          title: config.pranksterName,
-          subtitle: `Sent to ${config.pranksterName} • Just now`,
+          // show the FRIEND as the sender in the list
+          title: config.friendName || "Friend",
+          subtitle: `Received from ${config.friendName || "Friend"} • Just now`,
           amount: prankAmount,
-          direction: "out",
+          direction: "in", // incoming money
           timeLabel: "Just now",
           isPrank: true,
         };
@@ -117,6 +134,8 @@ export function WalletScreen() {
     router.push("/info");
   }
 
+  const cardHolderName = config.pranksterName || "Cash";
+
   return (
     <main
       style={{
@@ -133,6 +152,7 @@ export function WalletScreen() {
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: "0.25rem",
+          position: "relative",
         }}
       >
         <button
@@ -159,10 +179,10 @@ export function WalletScreen() {
         >
           <span
             style={{
-              fontSize: "15px",
+              fontSize: 18,
               fontWeight: 600,
               color: "#111827",
-              letterSpacing: 0.1,
+              letterSpacing: 0.3,
             }}
           >
             {"\uF8FF"} Pay
@@ -170,21 +190,21 @@ export function WalletScreen() {
         </div>
 
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          {/* Info button */}
+          {/* Info button (black) */}
           <button
             onClick={handleInfoClick}
             style={{
               width: 24,
               height: 24,
               borderRadius: 999,
-              border: "1px solid rgba(0,0,0,0.15)",
+              border: "none",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 14,
               fontWeight: 600,
-              backgroundColor: "rgba(255,255,255,0.9)",
-              color: "#007aff",
+              backgroundColor: "#000",
+              color: "#fff",
               padding: 0,
               cursor: "pointer",
             }}
@@ -199,28 +219,22 @@ export function WalletScreen() {
       <section
         onClick={handleCardClick}
         style={{
-          marginTop: "0.6rem",
+          marginTop: "0.7rem",
           marginBottom: "1.2rem",
           background:
             "radial-gradient(circle at 30% 30%, #333 0, #111 40%, #000 70%)",
-          borderRadius: 20,
+          borderRadius: 22,
           padding: "1.2rem 1.4rem",
           color: "#fff",
           position: "relative",
-          boxShadow: "0 12px 25px rgba(0,0,0,0.4)",
+          boxShadow: "0 16px 32px rgba(0,0,0,0.45)",
           overflow: "hidden",
           cursor: "pointer",
+          aspectRatio: "16 / 9", // more card-like on mobile
+          maxHeight: 210,
         }}
       >
-        <div
-          style={{
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            marginBottom: "0.5rem",
-          }}
-        >
-          Cash
-        </div>
+        {/* dotted overlay */}
         <div
           style={{
             position: "absolute",
@@ -231,14 +245,78 @@ export function WalletScreen() {
             backgroundSize: "8px 8px",
           }}
         />
+
         <div
           style={{
             position: "relative",
             display: "flex",
+            flexDirection: "column",
+            height: "100%",
             justifyContent: "space-between",
-            alignItems: "flex-end",
           }}
         >
+          {/* top row: fake Apple logo + Cash, and card number */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: "0.6rem",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <span style={{ fontSize: 22 }}>{"\uF8FF"}</span>
+              <span
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: 0.4,
+                }}
+              >
+                Cash
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                letterSpacing: 2,
+                opacity: 0.85,
+              }}
+            >
+              •••• 6767
+            </div>
+          </div>
+
+          {/* middle: cardholder */}
+          <div style={{ marginBottom: "0.4rem" }}>
+            <div
+              style={{
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: 1,
+                opacity: 0.75,
+                marginBottom: 2,
+              }}
+            >
+              Cardholder
+            </div>
+            <div
+              style={{
+                fontSize: 15,
+                fontWeight: 500,
+              }}
+            >
+              {cardHolderName}
+            </div>
+          </div>
+
+          {/* bottom: balance */}
           <div>
             <div
               style={{
@@ -250,7 +328,7 @@ export function WalletScreen() {
             </div>
             <div
               style={{
-                fontSize: "1.9rem",
+                fontSize: "2.0rem",
                 fontWeight: 600,
                 letterSpacing: 0.3,
               }}
