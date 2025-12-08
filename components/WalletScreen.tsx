@@ -10,7 +10,7 @@ import type { PrankConfig, Transaction } from "@/lib/types";
 const BASE_BALANCE = 105;
 const STORAGE_KEY = "applepayprank-config";
 
-// default / fallback config
+// Fallback config if nothing saved yet
 const DEFAULT_CONFIG: PrankConfig = {
   pranksterName: "You",
   friendName: "Dorian",
@@ -59,8 +59,8 @@ export function WalletScreen() {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const parsed: Partial<PrankConfig> = JSON.parse(raw);
 
+      const parsed: Partial<PrankConfig> = JSON.parse(raw);
       const merged: PrankConfig = {
         ...DEFAULT_CONFIG,
         ...parsed,
@@ -72,6 +72,18 @@ export function WalletScreen() {
     }
   }, []);
 
+  // Safe derived values for UI
+  const prankFromName =
+    (config.friendName && config.friendName.trim()) || DEFAULT_CONFIG.friendName;
+  const prankToName =
+    (config.pranksterName && config.pranksterName.trim()) ||
+    DEFAULT_CONFIG.pranksterName;
+
+  const nextTransferAmount: number =
+    config.amountMode === "fixed" && typeof config.fixedAmount === "number"
+      ? config.fixedAmount
+      : DEFAULT_CONFIG.fixedAmount ?? 0;
+
   const { status, displayBalance, prankAmount, triggerPrank } =
     usePrankEngine(BASE_BALANCE, config, { onPlaySound: play });
 
@@ -79,12 +91,12 @@ export function WalletScreen() {
   useEffect(() => {
     if (status === "completed" && prankAmount != null) {
       setTransactions((prev) => {
-        if (prev.some((t) => t.isPrank)) return prev; // don't duplicate
+        if (prev.some((t) => t.isPrank)) return prev;
 
         const prankTx: Transaction = {
           id: "prank",
-          title: config.pranksterName,
-          subtitle: `Sent to ${config.pranksterName} • Just now`,
+          title: prankToName,
+          subtitle: `Sent to ${prankToName} • Just now`,
           amount: prankAmount,
           direction: "out",
           timeLabel: "Just now",
@@ -94,14 +106,14 @@ export function WalletScreen() {
         return [prankTx, ...prev];
       });
     }
-  }, [status, prankAmount, config]);
+  }, [status, prankAmount, prankToName]);
 
   function handleTransactionClick(tx: Transaction) {
     if (!tx.isPrank) return;
     const params = new URLSearchParams({
       amount: tx.amount.toFixed(2),
-      from: config.friendName,
-      to: config.pranksterName,
+      from: prankFromName,
+      to: prankToName,
     });
     router.push(`/transaction?${params.toString()}`);
   }
@@ -193,7 +205,7 @@ export function WalletScreen() {
         </div>
       </header>
 
-      {/* Subtle top hint text */}
+      {/* Subtle hint text */}
       <div
         style={{
           fontSize: 12,
@@ -222,7 +234,7 @@ export function WalletScreen() {
           cursor: "pointer",
         }}
       >
-        {/* sprinkle/dot texture */}
+        {/* dot texture */}
         <div
           style={{
             position: "absolute",
@@ -234,7 +246,7 @@ export function WalletScreen() {
           }}
         />
 
-        {/* subtle light sheen */}
+        {/* sheen */}
         <div
           style={{
             position: "absolute",
@@ -325,7 +337,7 @@ export function WalletScreen() {
             </div>
           </div>
 
-          {/* Mini stats row like Apple Pay Later */}
+          {/* Mini stats row */}
           <div
             style={{
               display: "flex",
@@ -356,7 +368,7 @@ export function WalletScreen() {
                   fontSize: 14,
                 }}
               >
-                ${config.fixedAmount.toFixed(2)}
+                ${nextTransferAmount.toFixed(2)}
               </div>
             </div>
             <div
@@ -385,7 +397,7 @@ export function WalletScreen() {
                   textOverflow: "ellipsis",
                 }}
               >
-                {config.friendName}
+                {prankFromName}
               </div>
             </div>
           </div>
