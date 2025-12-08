@@ -65,7 +65,8 @@ export function WalletScreen() {
   const { play, prime } = useSound("/ding.mp3");
 
   const [config, setConfig] = useState<PrankConfig>(DEFAULT_CONFIG);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] =
+    useState<Transaction[]>(INITIAL_TRANSACTIONS);
 
   // Load config from localStorage
   useEffect(() => {
@@ -230,14 +231,14 @@ export function WalletScreen() {
             background:
               "radial-gradient(circle at 30% 30%, #333 0, #111 40%, #000 70%)",
             borderRadius: 22,
-            padding: "1.2rem 1.4rem",
+            padding: "1.35rem 1.5rem",
             color: "#fff",
             position: "relative",
             boxShadow: "0 16px 32px rgba(0,0,0,0.45)",
             overflow: "hidden",
             cursor: "pointer",
             width: "100%",
-            height: 210,
+            height: 230, // slightly taller (≈10% increase)
           }}
         >
           {/* dotted overlay */}
@@ -270,133 +271,4 @@ export function WalletScreen() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 26 }}>{"\uF8FF"}</span>
-                <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: 0.5 }}>
-                  Cash
-                </span>
-              </div>
-
-              <div style={{ fontSize: 12, letterSpacing: 2, opacity: 0.85 }}>
-                •••• 6767
-              </div>
-            </div>
-
-            {/* Bottom row */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "flex-end",
-                marginTop: "auto",
-              }}
-            >
-              <div style={{ fontSize: "2.2rem", fontWeight: 600, letterSpacing: 0.3 }}>
-                ${displayBalance.toFixed(2)}
-              </div>
-
-              <div style={{ textAlign: "right" }}>
-                <div
-                  style={{
-                    fontSize: 11,
-                    textTransform: "uppercase",
-                    letterSpacing: 1,
-                    opacity: 0.75,
-                    marginBottom: 2,
-                  }}
-                >
-                  Cardholder
-                </div>
-                <div style={{ fontSize: 15, fontWeight: 500 }}>{cardHolderName}</div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Transactions */}
-        <section>
-          <h2
-            style={{
-              fontSize: "1rem",
-              fontWeight: 600,
-              marginBottom: "0.4rem",
-              paddingInline: "0.25rem",
-              color: "#111",
-            }}
-          >
-            Latest Transactions
-          </h2>
-
-          <div
-            style={{
-              borderRadius: 16,
-              backgroundColor: "#fff",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-              overflow: "hidden",
-            }}
-          >
-            {transactions.map((tx, index) => (
-              <button
-                key={tx.id}
-                onClick={() => handleTransactionClick(tx)}
-                style={{
-                  display: "flex",
-                  width: "100%",
-                  padding: "0.75rem 0.9rem",
-                  border: "none",
-                  borderTop: index === 0 ? "none" : "1px solid #eee",
-                  backgroundColor: "#fff",
-                  textAlign: "left",
-                  cursor: tx.isPrank ? "pointer" : "default",
-                }}
-              >
-                <div
-                  style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    backgroundColor: "#111",
-                    color: "#fff",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 18,
-                    marginRight: 10,
-                  }}
-                >
-                  {getTxIcon(tx)}
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: "0.95rem",
-                      fontWeight: 500,
-                      marginBottom: 2,
-                      color: "#111",
-                    }}
-                  >
-                    {tx.title}
-                  </div>
-
-                  <div style={{ fontSize: "0.8rem", color: "#6b7280" }}>
-                    {tx.subtitle}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    fontSize: "0.95rem",
-                    fontWeight: 500,
-                    color: tx.direction === "in" ? "#0a7a20" : "#000",
-                  }}
-                >
-                  {tx.direction === "in" ? "+" : "-"}${tx.amount.toFixed(2)}
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
+                <span st
