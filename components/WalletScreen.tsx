@@ -85,10 +85,15 @@ export function WalletScreen() {
     router.push(`/transaction?${params.toString()}`);
   }
 
-  // 🔑 New: wrap the card click so we prime audio on the same gesture
+  // card click: prime audio (iOS) then start prank
   function handleCardClick() {
-    prime();        // unlocks audio on iOS
-    triggerPrank(); // starts countdown
+    prime();
+    triggerPrank();
+  }
+
+  // ⓘ info button → fields page (we'll build /info next)
+  function handleInfoClick() {
+    router.push("/info");
   }
 
   return (
@@ -113,15 +118,36 @@ export function WalletScreen() {
           style={{
             background: "none",
             border: "none",
-            color: "#007aff",
-            fontSize: "1rem",
+            color: "#000", // black like iOS Wallet
+            fontSize: "17px",
+            fontWeight: 500,
           }}
         >
           Done
         </button>
-        <div style={{ display: "flex", gap: "1rem", alignItems: "center" }}>
-          <span style={{ fontSize: "1.1rem" }}>🔍</span>
-          <span style={{ fontSize: "1.4rem" }}>⋯</span>
+        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+          {/* Info button */}
+          <button
+            onClick={handleInfoClick}
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 999,
+              border: "1px solid rgba(0,0,0,0.15)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              fontWeight: 600,
+              backgroundColor: "rgba(255,255,255,0.9)",
+              color: "#007aff",
+              padding: 0,
+              cursor: "pointer",
+            }}
+            aria-label="Info"
+          >
+            i
+          </button>
         </div>
       </header>
 
@@ -155,10 +181,10 @@ export function WalletScreen() {
           style={{
             position: "absolute",
             inset: 0,
-            opacity: 0.22,
+            opacity: 0.18,
             backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)",
-            backgroundSize: "10px 10px",
+              "radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)",
+            backgroundSize: "8px 8px",
           }}
         />
         <div
@@ -170,14 +196,19 @@ export function WalletScreen() {
           }}
         >
           <div>
-            <div style={{ fontSize: "0.85rem", opacity: 0.75 }}>
+            <div
+              style={{
+                fontSize: "0.8rem",
+                opacity: 0.8,
+              }}
+            >
               Balance
             </div>
             <div
               style={{
-                fontSize: "1.8rem",
+                fontSize: "1.9rem",
                 fontWeight: 600,
-                letterSpacing: 0.5,
+                letterSpacing: 0.3,
               }}
             >
               ${displayBalance.toFixed(2)}
@@ -190,10 +221,11 @@ export function WalletScreen() {
       <section>
         <h2
           style={{
-            fontSize: "1.1rem",
+            fontSize: "1.0rem",
             fontWeight: 600,
             marginBottom: "0.4rem",
             paddingInline: "0.25rem",
+            color: "#111", // darker label
           }}
         >
           Latest Transactions
@@ -202,7 +234,7 @@ export function WalletScreen() {
           style={{
             borderRadius: 16,
             backgroundColor: "#fff",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
             overflow: "hidden",
           }}
         >
@@ -246,6 +278,7 @@ export function WalletScreen() {
                     fontSize: "0.95rem",
                     fontWeight: 500,
                     marginBottom: 2,
+                    color: "#111", // darker text
                   }}
                 >
                   {tx.title}
@@ -253,7 +286,7 @@ export function WalletScreen() {
                 <div
                   style={{
                     fontSize: "0.8rem",
-                    opacity: 0.6,
+                    color: "#6b7280", // subtle but readable grey
                   }}
                 >
                   {tx.subtitle}
