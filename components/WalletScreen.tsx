@@ -7,9 +7,10 @@ import { useSound } from "@/lib/useSound";
 import { usePrankEngine } from "@/lib/usePrankEngine";
 import type { PrankConfig, Transaction } from "@/lib/types";
 
-const BASE_BALANCE = 105; // starting visible balance
+const BASE_BALANCE = 105;
+const STORAGE_KEY = "applepayprank-config";
 
-// simple hardcoded config for now
+// default / fallback config
 const DEFAULT_CONFIG: PrankConfig = {
   pranksterName: "You",
   friendName: "Dorian",
@@ -48,11 +49,31 @@ export function WalletScreen() {
   const router = useRouter();
   const { play, prime } = useSound("/ding.mp3");
 
+  const [config, setConfig] = useState<PrankConfig>(DEFAULT_CONFIG);
   const [transactions, setTransactions] =
     useState<Transaction[]>(INITIAL_TRANSACTIONS);
 
+  // Load prank config from localStorage (set on /info)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = window.localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed: Partial<PrankConfig> = JSON.parse(raw);
+
+      const merged: PrankConfig = {
+        ...DEFAULT_CONFIG,
+        ...parsed,
+      };
+
+      setConfig(merged);
+    } catch (err) {
+      console.warn("[wallet] failed to load config", err);
+    }
+  }, []);
+
   const { status, displayBalance, prankAmount, triggerPrank } =
-    usePrankEngine(BASE_BALANCE, DEFAULT_CONFIG, { onPlaySound: play });
+    usePrankEngine(BASE_BALANCE, config, { onPlaySound: play });
 
   // When prank finishes, insert the new transaction at top (once)
   useEffect(() => {
@@ -62,8 +83,8 @@ export function WalletScreen() {
 
         const prankTx: Transaction = {
           id: "prank",
-          title: DEFAULT_CONFIG.pranksterName,
-          subtitle: `Sent to ${DEFAULT_CONFIG.pranksterName} • Just now`,
+          title: config.pranksterName,
+          subtitle: `Sent to ${config.pranksterName} • Just now`,
           amount: prankAmount,
           direction: "out",
           timeLabel: "Just now",
@@ -73,14 +94,14 @@ export function WalletScreen() {
         return [prankTx, ...prev];
       });
     }
-  }, [status, prankAmount]);
+  }, [status, prankAmount, config]);
 
   function handleTransactionClick(tx: Transaction) {
     if (!tx.isPrank) return;
     const params = new URLSearchParams({
       amount: tx.amount.toFixed(2),
-      from: DEFAULT_CONFIG.friendName,
-      to: DEFAULT_CONFIG.pranksterName,
+      from: config.friendName,
+      to: config.pranksterName,
     });
     router.push(`/transaction?${params.toString()}`);
   }
@@ -91,7 +112,6 @@ export function WalletScreen() {
     triggerPrank();
   }
 
-  // ⓘ info button → fields page (we'll build /info next)
   function handleInfoClick() {
     router.push("/info");
   }
@@ -105,28 +125,50 @@ export function WalletScreen() {
         fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
       }}
     >
-      {/* Top bar */}
+      {/* Top bar with Apple-style title */}
       <header
         style={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
           marginBottom: "0.5rem",
         }}
       >
-        <button
+        {/* Left: Done */}
+        <div style={{ width: 60 }}>
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              color: "#000",
+              fontSize: 17,
+              fontWeight: 500,
+            }}
+          >
+            Done
+          </button>
+        </div>
+
+        {/* Center: Apple Pay title */}
+        <div
           style={{
-            background: "none",
-            border: "none",
-            color: "#000", // black like iOS Wallet
-            fontSize: "17px",
-            fontWeight: 500,
+            flex: 1,
+            textAlign: "center",
+            fontSize: 17,
+            fontWeight: 600,
+            color: "#000",
           }}
         >
-          Done
-        </button>
-        <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
-          {/* Info button */}
+          Apple Pay
+        </div>
+
+        {/* Right: info button */}
+        <div
+          style={{
+            width: 60,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
+        >
           <button
             onClick={handleInfoClick}
             style={{
@@ -151,67 +193,200 @@ export function WalletScreen() {
         </div>
       </header>
 
+      {/* Subtle top hint text */}
+      <div
+        style={{
+          fontSize: 12,
+          color: "#6b7280",
+          paddingInline: "0.1rem",
+          marginBottom: "0.25rem",
+        }}
+      >
+        Double-check the amount, then tap the card to send.
+      </div>
+
       {/* Cash card */}
       <section
         onClick={handleCardClick}
         style={{
-          marginTop: "0.5rem",
+          marginTop: "0.25rem",
           marginBottom: "1.2rem",
           background:
-            "radial-gradient(circle at 30% 30%, #333 0, #111 40%, #000 70%)",
+            "radial-gradient(circle at 20% 0%, #444 0, #222 30%, #000 70%)",
           borderRadius: 20,
           padding: "1.2rem 1.4rem",
           color: "#fff",
           position: "relative",
-          boxShadow: "0 12px 25px rgba(0,0,0,0.4)",
+          boxShadow: "0 12px 25px rgba(0,0,0,0.45)",
           overflow: "hidden",
           cursor: "pointer",
         }}
       >
-        <div
-          style={{
-            fontSize: "1.1rem",
-            fontWeight: 600,
-            marginBottom: "0.5rem",
-          }}
-        >
-          Cash
-        </div>
+        {/* sprinkle/dot texture */}
         <div
           style={{
             position: "absolute",
             inset: 0,
-            opacity: 0.18,
+            opacity: 0.16,
             backgroundImage:
-              "radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)",
-            backgroundSize: "8px 8px",
+              "radial-gradient(circle, rgba(255,255,255,0.4) 1px, transparent 1px)",
+            backgroundSize: "9px 9px",
           }}
         />
+
+        {/* subtle light sheen */}
+        <div
+          style={{
+            position: "absolute",
+            top: "-40%",
+            left: "-10%",
+            right: "-10%",
+            height: "60%",
+            background:
+              "linear-gradient(135deg, rgba(255,255,255,0.25), transparent)",
+            opacity: 0.35,
+          }}
+        />
+
         <div
           style={{
             position: "relative",
             display: "flex",
-            justifyContent: "space-between",
-            alignItems: "flex-end",
+            flexDirection: "column",
+            gap: 8,
           }}
         >
-          <div>
+          {/* Logo row */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
             <div
               style={{
-                fontSize: "0.8rem",
+                display: "flex",
+                alignItems: "baseline",
+                gap: 4,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                }}
+              >
+                
+              </span>
+              <span
+                style={{
+                  fontSize: 16,
+                  fontWeight: 600,
+                  letterSpacing: 0.2,
+                }}
+              >
+                Cash
+              </span>
+            </div>
+            <div
+              style={{
+                fontSize: 12,
                 opacity: 0.8,
+              }}
+            >
+              •••• 1234
+            </div>
+          </div>
+
+          {/* Balance */}
+          <div
+            style={{
+              marginTop: 10,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.8,
+                marginBottom: 2,
               }}
             >
               Balance
             </div>
             <div
               style={{
-                fontSize: "1.9rem",
+                fontSize: 30,
                 fontWeight: 600,
                 letterSpacing: 0.3,
               }}
             >
               ${displayBalance.toFixed(2)}
+            </div>
+          </div>
+
+          {/* Mini stats row like Apple Pay Later */}
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginTop: 12,
+            }}
+          >
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                backgroundColor: "rgba(0,0,0,0.35)",
+                padding: "0.4rem 0.6rem",
+                fontSize: 11,
+              }}
+            >
+              <div
+                style={{
+                  opacity: 0.75,
+                  marginBottom: 2,
+                }}
+              >
+                Next Transfer
+              </div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                ${config.fixedAmount.toFixed(2)}
+              </div>
+            </div>
+            <div
+              style={{
+                flex: 1,
+                borderRadius: 12,
+                backgroundColor: "rgba(0,0,0,0.35)",
+                padding: "0.4rem 0.6rem",
+                fontSize: 11,
+              }}
+            >
+              <div
+                style={{
+                  opacity: 0.75,
+                  marginBottom: 2,
+                }}
+              >
+                From
+              </div>
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 14,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {config.friendName}
+              </div>
             </div>
           </div>
         </div>
@@ -225,7 +400,7 @@ export function WalletScreen() {
             fontWeight: 600,
             marginBottom: "0.4rem",
             paddingInline: "0.25rem",
-            color: "#111", // darker label
+            color: "#111",
           }}
         >
           Latest Transactions
@@ -278,7 +453,7 @@ export function WalletScreen() {
                     fontSize: "0.95rem",
                     fontWeight: 500,
                     marginBottom: 2,
-                    color: "#111", // darker text
+                    color: "#111",
                   }}
                 >
                   {tx.title}
@@ -286,7 +461,7 @@ export function WalletScreen() {
                 <div
                   style={{
                     fontSize: "0.8rem",
-                    color: "#6b7280", // subtle but readable grey
+                    color: "#6b7280",
                   }}
                 >
                   {tx.subtitle}
