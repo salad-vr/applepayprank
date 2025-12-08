@@ -46,17 +46,13 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
 
 export function WalletScreen() {
   const router = useRouter();
-  const { play } = useSound("/ding.mp3");
+  const { play, prime } = useSound("/ding.mp3");
 
   const [transactions, setTransactions] =
     useState<Transaction[]>(INITIAL_TRANSACTIONS);
 
-  const {
-    status,
-    displayBalance,
-    prankAmount,
-    triggerPrank,
-  } = usePrankEngine(BASE_BALANCE, DEFAULT_CONFIG, { onPlaySound: play });
+  const { status, displayBalance, prankAmount, triggerPrank } =
+    usePrankEngine(BASE_BALANCE, DEFAULT_CONFIG, { onPlaySound: play });
 
   // When prank finishes, insert the new transaction at top (once)
   useEffect(() => {
@@ -87,6 +83,12 @@ export function WalletScreen() {
       to: DEFAULT_CONFIG.pranksterName,
     });
     router.push(`/transaction?${params.toString()}`);
+  }
+
+  // 🔑 New: wrap the card click so we prime audio on the same gesture
+  function handleCardClick() {
+    prime();        // unlocks audio on iOS
+    triggerPrank(); // starts countdown
   }
 
   return (
@@ -125,7 +127,7 @@ export function WalletScreen() {
 
       {/* Cash card */}
       <section
-        onClick={triggerPrank}
+        onClick={handleCardClick}
         style={{
           marginTop: "0.5rem",
           marginBottom: "1.2rem",
