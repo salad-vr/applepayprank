@@ -11,7 +11,7 @@ export default function InfoPage() {
   const router = useRouter();
 
   const [pranksterName, setPranksterName] = useState("You"); // receiver (you)
-  const [friendName, setFriendName] = useState("Dorian"); // friend sending money
+  const [friendName, setFriendName] = useState(""); // friend sending money (empty -> Apple Pay)
   const [amount, setAmount] = useState("27.43"); // fixed prank amount
 
   // Load saved config (if any)
@@ -40,7 +40,7 @@ export default function InfoPage() {
 
     const config: PrankConfig = {
       pranksterName: pranksterName.trim() || "You",
-      friendName: friendName.trim() || "Friend",
+      friendName: friendName.trim() || "Apple Pay",
       amountMode: "fixed",
       fixedAmount,
     };
@@ -173,7 +173,7 @@ export default function InfoPage() {
           >
             You&apos;ll appear to receive{" "}
             <strong>${amount || "0.00"}</strong> from{" "}
-            <strong>{friendName || "Friend"}</strong>.
+            <strong>{(friendName && friendName.trim()) || "Apple Pay"}</strong>.
           </div>
         </section>
 
@@ -186,15 +186,14 @@ export default function InfoPage() {
             overflow: "hidden",
           }}
         >
-          {/* Amount row */}
+          {/* Amount row (left-aligned, like other fields) */}
           <div
             style={{
               padding: "0.75rem 0.9rem",
               borderBottom: "1px solid #e5e7eb",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "0.75rem",
+              flexDirection: "column",
+              gap: 6,
             }}
           >
             <div>
@@ -220,12 +219,17 @@ export default function InfoPage() {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 4,
-                minWidth: 100,
-                justifyContent: "flex-end",
               }}
             >
-              <span style={{ fontSize: 16 }}>$</span>
+              <span
+                style={{
+                  fontSize: 16,
+                  marginRight: 4,
+                  color: "#111827",
+                }}
+              >
+                $
+              </span>
               <input
                 type="text"
                 inputMode="decimal"
@@ -236,11 +240,11 @@ export default function InfoPage() {
                 style={{
                   border: "none",
                   outline: "none",
-                  textAlign: "right",
                   fontSize: "16px",
-                  width: 80,
+                  padding: "4px 0",
                   background: "transparent",
-                  color: "#111827", // always solid text
+                  color: "#111827",
+                  flex: 1,
                 }}
               />
             </div>
@@ -266,7 +270,7 @@ export default function InfoPage() {
             </div>
             <input
               type="text"
-              placeholder="Dorian"
+              placeholder="Apple Pay"
               value={friendName}
               onChange={(e) => setFriendName(e.target.value)}
               style={{
@@ -347,10 +351,9 @@ export default function InfoPage() {
               border: "none",
               fontSize: "16px",
               fontWeight: 500,
-              background:
-                "linear-gradient(135deg, #34c759 0%, #30b0ff 40%, #5856d6 100%)",
+              background: "#000",
               color: "#fff",
-              boxShadow: "0 6px 12px rgba(0,0,0,0.18)",
+              boxShadow: "0 6px 12px rgba(0,0,0,0.25)",
               cursor: "pointer",
             }}
           >
