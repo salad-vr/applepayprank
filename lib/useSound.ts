@@ -3,6 +3,14 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
+/**
+ * This version aggressively primes audio on iOS Home Screen PWAs.
+ * It performs:
+ * 1. A muted play → pause → reset (true gesture unlock)
+ * 2. A second delayed unlock (for Safari PWA flakiness)
+ * After this, ANY delayed play (even 5+ seconds later) should succeed.
+ */
+
 export function useSound(src: string) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const primedRef = useRef(false);
@@ -12,77 +20,92 @@ export function useSound(src: string) {
 
     const audio = new Audio(src);
     audio.preload = "auto";
-
-    const handleCanPlay = () => {
-      console.log("[sound] loaded:", src);
-    };
-
-    const handleError = (e: any) => {
-      console.error("[sound] failed to load:", src, e);
-    };
-
-    audio.addEventListener("canplaythrough", handleCanPlay);
-    audio.addEventListener("error", handleError);
-
     audioRef.current = audio;
 
+    console.log("[sound] created audio:", src);
+
     return () => {
-      audio.removeEventListener("canplaythrough", handleCanPlay);
-      audio.removeEventListener("error", handleError);
       audio.pause();
       audioRef.current = null;
       primedRef.current = false;
     };
   }, [src]);
 
-  // Called on first tap, directly in the click handler – to satisfy iOS
+  // 🔥 HARD PRIMING — must run on actual UI tap
   const prime = useCallback(() => {
-    if (primedRef.current) return;
-    if (!audioRef.current) {
-      console.warn("[sound] cannot prime, audioRef is null:", src);
+    const audio = audioRef.current;
+    if (!audio) {
+      console.warn("[sound] cannot prime, audioRef null");
+      return;
+    }
+    if (primedRef.current) {
+      console.log("[sound] already primed");
       return;
     }
 
-    try {
-      audioRef.current.muted = true;
-      const p = audioRef.current.play();
-      if (p && typeof p.catch === "function") {
-        p.catch((err) => {
-          console.warn("[sound] prime play() rejected:", err);
-        });
-      }
+    console.log("[sound] PRIMING START...");
 
-      // Stop it almost immediately and reset
+    try {
+      // Step 1 — muted, gesture-based play
+      audio.muted = true;
+      audio.currentTime = 0;
+
+      const p = audio.play();
+      if (p && p.catch) p.catch(() => {});
+
+      // Step 2 — pause + reset shortly after
       setTimeout(() => {
         if (!audioRef.current) return;
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-        audioRef.current.muted = false;
-        primedRef.current = true;
-        console.log("[sound] primed:", src);
-      }, 50);
+        audio.pause();
+        audio.currentTime = 0;
+        audio.muted = false;
+
+        console.log("[sound] first unlock complete");
+
+        // Step 3 — second unlock (ensures iOS PWA consistency)
+        setTimeout(() => {
+          const a2 = audioRef.current;
+          if (!a2) return;
+
+          a2.muted = true;
+          a2.currentTime = 0;
+          const p2 = a2.play();
+          if (p2 && p2.catch) p2.catch(() => {});
+
+          setTimeout(() => {
+            if (!audioRef.current) return;
+            audioRef.current.pause();
+            audioRef.current.currentTime = 0;
+            audioRef.current.muted = false;
+
+            primedRef.current = true;
+            console.log("[sound] FULLY PRIMED ✔️", src);
+          }, 50);
+        }, 250);
+      }, 80);
     } catch (err) {
       console.warn("[sound] prime failed:", err);
     }
-  }, [src]);
+  }, []);
 
+  // Called at the moment the effect fires (5 seconds later)
   const play = useCallback(async () => {
-    if (!audioRef.current) {
-      console.warn("[sound] audioRef is null when trying to play:", src);
+    const audio = audioRef.current;
+    if (!audio) {
+      console.warn("[sound] play failed: audioRef null");
       return;
     }
 
     try {
-      audioRef.current.currentTime = 0;
-      const result = audioRef.current.play();
-      if (result && typeof result.then === "function") {
-        await result;
-      }
-      console.log("[sound] play succeeded:", src);
+      audio.currentTime = 0;
+      const result = audio.play();
+      if (result?.then) await result;
+
+      console.log("[sound] PLAYED SUCCESSFULLY:", src);
     } catch (err) {
-      console.error("[sound] play blocked or failed:", err);
+      console.error("[sound] PLAY BLOCKED:", err);
     }
-  }, [src]);
+  }, []);
 
   return { play, prime };
 }
