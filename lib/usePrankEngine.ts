@@ -32,7 +32,16 @@ export function usePrankEngine(
   };
 
   const triggerPrank = useCallback(() => {
-    if (status !== "idle") return;
+    // Don't start a new one if we're already counting down
+    if (status === "countdown") return;
+
+    // Allow restarting after "completed" — treat it like idle
+    clearTimer();
+
+    // Reset core state at the start of each prank
+    setDisplayBalance(baseBalance);
+    setCountdownRemaining(null);
+    setPrankAmount(null);
 
     // Determine prank amount
     let amount = 20;
@@ -52,32 +61,29 @@ export function usePrankEngine(
     }
 
     setPrankAmount(amount);
-    setStatus("countdown");
 
     // Countdown: baseBalance → 100
     const start = baseBalance; // e.g. 105
     const end = 100; // where countdown stops
     let current = start;
 
-    const steps = start - end; // e.g. 105 → 100 = 5 steps
+    const steps = Math.max(start - end, 1); // e.g. 105 → 100 = 5 steps
 
     setDisplayBalance(start);
     setCountdownRemaining(steps);
-
-    clearTimer();
+    setStatus("countdown");
 
     intervalRef.current = setInterval(() => {
       current -= 1;
 
       setDisplayBalance(current);
       setCountdownRemaining((prev) =>
-        prev !== null ? prev - 1 : null
+        prev !== null ? Math.max(prev - 1, 0) : null
       );
 
       if (current <= end) {
-        // Countdown reached 100
+        // Reached 100 → finish countdown
         clearTimer();
-        setStatus("completed");
         setCountdownRemaining(null);
 
         // 🔊 play sound right at 100 (if provided)
@@ -89,6 +95,12 @@ export function usePrankEngine(
         setTimeout(() => {
           const finalBalance = Number((end + amount).toFixed(2));
           setDisplayBalance(finalBalance);
+          setStatus("completed");
+
+          // 🔁 Auto-reset back to idle quickly so the next tap works again
+          setTimeout(() => {
+            setStatus("idle");
+          }, 50);
         }, 250);
 
         // SMS stub still fires after 12 seconds
