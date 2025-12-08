@@ -7,7 +7,7 @@ import { useSound } from "@/lib/useSound";
 import { usePrankEngine } from "@/lib/usePrankEngine";
 import type { PrankConfig, Transaction } from "@/lib/types";
 
-const BASE_BALANCE = 106;
+const BASE_BALANCE = 105;
 const STORAGE_KEY = "applepayprank-config";
 
 const DEFAULT_CONFIG: PrankConfig = {
