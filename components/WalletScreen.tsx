@@ -22,8 +22,8 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   {
     id: "1",
     title: "Debit Card",
-    subtitle: "Added to Balance • 41 minutes ago",
-    amount: 207,
+    subtitle: "Added to Balance • 56 minutes ago",
+    amount: 50,
     direction: "in",
     timeLabel: "",
   },
