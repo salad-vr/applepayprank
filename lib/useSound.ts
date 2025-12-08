@@ -8,7 +8,8 @@ import { useCallback, useEffect, useRef } from "react";
  * It performs:
  * 1. A muted play → pause → reset (true gesture unlock)
  * 2. A second delayed unlock (for Safari PWA flakiness)
- * After this, ANY delayed play (even 5+ seconds later) should succeed.
+ * After this, ANY delayed play (even 5+ seconds later) should be allowed
+ * as long as the user tapped the screen and the device isn't muted.
  */
 
 export function useSound(src: string) {
@@ -31,7 +32,7 @@ export function useSound(src: string) {
     };
   }, [src]);
 
-  // 🔥 HARD PRIMING — must run on actual UI tap
+  // 🔥 HARD PRIMING — must run inside an actual user tap (onClick)
   const prime = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) {
@@ -50,30 +51,39 @@ export function useSound(src: string) {
       audio.muted = true;
       audio.currentTime = 0;
 
-      const p = audio.play();
-      if (p && p.catch) p.catch(() => {});
+      audio
+        .play()
+        .catch((err) =>
+          console.warn("[sound] first prime play() rejected:", err)
+        );
 
       // Step 2 — pause + reset shortly after
       setTimeout(() => {
         if (!audioRef.current) return;
-        audio.pause();
-        audio.currentTime = 0;
-        audio.muted = false;
+
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0;
+        audioRef.current.muted = false;
 
         console.log("[sound] first unlock complete");
 
-        // Step 3 — second unlock (ensures iOS PWA consistency)
+        // Step 3 — second tiny unlock to make PWAs extra happy
         setTimeout(() => {
           const a2 = audioRef.current;
           if (!a2) return;
 
           a2.muted = true;
           a2.currentTime = 0;
-          const p2 = a2.play();
-          if (p2 && p2.catch) p2.catch(() => {});
+
+          a2
+            .play()
+            .catch((err) =>
+              console.warn("[sound] second prime play() rejected:", err)
+            );
 
           setTimeout(() => {
             if (!audioRef.current) return;
+
             audioRef.current.pause();
             audioRef.current.currentTime = 0;
             audioRef.current.muted = false;
@@ -88,7 +98,7 @@ export function useSound(src: string) {
     }
   }, []);
 
-  // Called at the moment the effect fires (5 seconds later)
+  // Called at the moment the effect fires (e.g. 5 seconds after tap)
   const play = useCallback(async () => {
     const audio = audioRef.current;
     if (!audio) {
@@ -98,9 +108,7 @@ export function useSound(src: string) {
 
     try {
       audio.currentTime = 0;
-      const result = audio.play();
-      if (result?.then) await result;
-
+      await audio.play(); // Promise<void> — no extra checks needed
       console.log("[sound] PLAYED SUCCESSFULLY:", src);
     } catch (err) {
       console.error("[sound] PLAY BLOCKED:", err);
