@@ -194,7 +194,7 @@ export function WalletScreen() {
   function handleCardClick() {
     if (overlayPhase !== "hidden") return;
 
-    // prime audio in a user gesture
+    // prime audio in a user gesture (optional, safe no-op in our hook)
     prime();
 
     const amount = generatePrankAmount(config);
