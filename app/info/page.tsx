@@ -21,7 +21,7 @@ const DEFAULT_CONFIG: PrankConfig = {
 export default function InfoPage() {
   const router = useRouter();
 
-  // Local editable state
+  // Local editable state.
   const [pranksterName, setPranksterName] = useState(DEFAULT_CONFIG.pranksterName);
   const [friendName, setFriendName] = useState(DEFAULT_CONFIG.friendName);
   const [amountMode, setAmountMode] = useState<PrankConfig["amountMode"]>("fixed");
