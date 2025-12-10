@@ -8,21 +8,24 @@ type UseSoundOptions = {
 };
 
 /**
- * iOS / PWA-friendly sound hook.
+ * Simple, reliable sound hook for web / iOS.
  *
  * - Creates ONE <audio> element and preloads it.
- * - `prime()` MUST be called from a real user gesture (onClick/onTap).
- *   It "unlocks" audio on Safari/iOS.
- * - After that, `play()` can be called from timeouts, effects, etc.
+ * - `play()` should be called from a real user gesture (onClick/onTap)
+ *   for best reliability. In our app, it is.
+ * - `prime()` is kept for backwards compatibility but is effectively a no-op.
  */
 export function useSound(src: string, options?: UseSoundOptions) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const primedRef = useRef(false);
 
   // Create + preload audio element once per src
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const audio = new Audio(src);
     audio.preload = "auto";
+    audio.crossOrigin = "anonymous";
+
     if (typeof options?.volume === "number") {
       audio.volume = options.volume;
     }
@@ -36,34 +39,33 @@ export function useSound(src: string, options?: UseSoundOptions) {
         // ignore
       }
       audioRef.current = null;
-      primedRef.current = false;
     };
   }, [src, options?.volume]);
 
   /**
-   * Call this FROM A REAL TAP (card press, etc.).
-   * It plays silently once to "unlock" audio on iOS.
+   * Backwards-compatible stub.
+   * We *could* try to unlock here, but in this app `play()` is already
+   * called from a real tap, so we don't need complex priming logic.
    */
   const prime = useCallback(() => {
+    // no-op on purpose; kept so existing calls don't break
     const audio = audioRef.current;
-    if (!audio || primedRef.current) return;
+    if (!audio) return;
 
-    // Try to play VERY briefly to satisfy Safari's gesture requirement.
-    audio.volume = options?.volume ?? 1;
-    audio
-      .play()
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        primedRef.current = true;
-      })
-      .catch(() => {
-        // If this fails, we'll try again on the next tap.
-      });
-  }, [options?.volume]);
+    // Light-touch: ensure audio is loaded; don't actually try to play.
+    if (audio.readyState < 2) {
+      // Kick the network load if needed
+      try {
+        audio.load();
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
 
   /**
-   * Play the sound. Works reliably AFTER a successful prime().
+   * Play the sound. For best results, call this directly inside
+   * an onClick/onTap handler (which you are doing in WalletScreen).
    */
   const play = useCallback(() => {
     const audio = audioRef.current;
