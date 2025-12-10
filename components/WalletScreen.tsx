@@ -73,7 +73,8 @@ export function WalletScreen() {
   const [config, setConfig] = useState<PrankConfig>(DEFAULT_CONFIG);
 
   const [balance, setBalance] = useState<number>(BASE_BALANCE);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [transactions, setTransactions] =
+    useState<Transaction[]>(INITIAL_TRANSACTIONS);
   const [walletLoaded, setWalletLoaded] = useState(false);
 
   const [overlayPhase, setOverlayPhase] = useState<OverlayPhase>("hidden");
@@ -95,7 +96,10 @@ export function WalletScreen() {
     return Number(raw.toFixed(2));
   }
 
-  function persistWalletState(nextBalance: number, nextTransactions: Transaction[]) {
+  function persistWalletState(
+    nextBalance: number,
+    nextTransactions: Transaction[]
+  ) {
     if (typeof window === "undefined") return;
     const payload = {
       balance: nextBalance,
@@ -111,7 +115,7 @@ export function WalletScreen() {
     try {
       // Load config
       const rawConfig = window.localStorage.getItem(CONFIG_STORAGE_KEY);
-      let resolvedConfig: PrankConfig = DEFAULT_CONFIG;
+      let resolvedConfig: PrankConfig = { ...DEFAULT_CONFIG };
 
       if (rawConfig) {
         const parsed: Partial<PrankConfig> = JSON.parse(rawConfig);
@@ -182,11 +186,8 @@ export function WalletScreen() {
     if (!tx.isPrank) return;
 
     const params = new URLSearchParams({
-      // Use the actual amount stored on the transaction
       amount: tx.amount.toFixed(2),
-      // Use the transaction title as "from" (this is what shows in the list)
       from: tx.title || config.friendName || "Sender",
-      // Use the prankster/cardholder name as "to"
       to: config.pranksterName || "You",
     });
 
@@ -210,13 +211,13 @@ export function WalletScreen() {
 
     setOverlayPhase("accepting");
 
-    // after ~1s, play sound, show success, and commit wallet changes
     confirmTimeoutRef.current = window.setTimeout(() => {
-      play();
       const amount = pendingAmount;
+      const newBalance = balance + amount;
 
+      play();
       setOverlayPhase("success");
-      setBalance((prev) => prev + amount);
+      setBalance(newBalance);
 
       setTransactions((prev) => {
         const prankTx: Transaction = {
@@ -228,17 +229,14 @@ export function WalletScreen() {
           timeLabel: "Just now",
           isPrank: true,
         };
-        const next = [prankTx, ...prev];
-        // extra safety: persist immediately as well
-        persistWalletState((prev ?? 0) + amount, next);
-        return next;
+        return [prankTx, ...prev];
       });
 
-      // hide overlay after a bit (longer dwell for success)
+      // Let the success screen linger
       hideTimeoutRef.current = window.setTimeout(() => {
         setOverlayPhase("hidden");
         setPendingAmount(null);
-      }, 3500); // ~3.5s on success screen
+      }, 3500);
     }, 1000);
   }
 
@@ -403,7 +401,9 @@ export function WalletScreen() {
                 marginTop: "auto",
               }}
             >
-              <div style={{ fontSize: "2.2rem", fontWeight: 600, letterSpacing: 0.3 }}>
+              <div
+                style={{ fontSize: "2.2rem", fontWeight: 600, letterSpacing: 0.3 }}
+              >
                 ${balance.toFixed(2)}
               </div>
 
@@ -456,7 +456,7 @@ export function WalletScreen() {
                   width: "100%",
                   padding: "0.75rem 0.9rem",
                   border: "none",
-                  borderTop: index === 0 ? "none" : "1px solid "#eee",
+                  borderTop: index === 0 ? "none" : "1px solid #eee",
                   backgroundColor: "#fff",
                   textAlign: "left",
                   cursor: tx.isPrank ? "pointer" : "default",
@@ -571,7 +571,10 @@ export function WalletScreen() {
 
               {overlayPhase === "pending" && (
                 <>
-                  <div className="applepay-spinner" style={{ margin: "0 auto 18px" }} />
+                  <div
+                    className="applepay-spinner"
+                    style={{ margin: "0 auto 18px" }}
+                  />
                   <div
                     style={{
                       fontSize: 18,
@@ -595,7 +598,10 @@ export function WalletScreen() {
 
               {overlayPhase === "success" && (
                 <>
-                  <div className="applepay-check-circle" style={{ margin: "0 auto 18px" }}>
+                  <div
+                    className="applepay-check-circle"
+                    style={{ margin: "0 auto 18px" }}
+                  >
                     <span>✓</span>
                   </div>
                   <div
