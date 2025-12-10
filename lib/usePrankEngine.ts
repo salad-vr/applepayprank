@@ -35,7 +35,7 @@ export function usePrankEngine(
   /**
    * Generate a prank amount based on config.amountMode.
    * - "fixed" → fixedAmount (default 20)
-   * - "range" → random between minAmount and maxAmount (defaults 15–85)
+   * - "range" → random between minAmount and maxAmount (defaults 10–50)
    */
   const triggerPrank = useCallback(() => {
     let amount: number;
@@ -44,9 +44,9 @@ export function usePrankEngine(
       amount = config.fixedAmount;
     } else if (config.amountMode === "range") {
       const min =
-        typeof config.minAmount === "number" ? config.minAmount : 15;
+        typeof config.minAmount === "number" ? config.minAmount : 10;
       const max =
-        typeof config.maxAmount === "number" ? config.maxAmount : 85;
+        typeof config.maxAmount === "number" ? config.maxAmount : 50;
       const raw = min + Math.random() * (max - min);
       amount = Number(raw.toFixed(2));
     } else {
