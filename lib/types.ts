@@ -32,6 +32,12 @@ export type PrankConfig = {
    * Maximum value for random amounts (when amountMode === "range").
    */
   maxAmount?: number;
+
+  /**
+   * Starting visible balance on the card when there's no saved wallet yet.
+   * Optional so existing saved configs don't break.
+   */
+  startingBalance?: number;
 };
 
 export type TransactionDirection = "in" | "out";
