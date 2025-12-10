@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+/* ---------- Root Theme ---------- */
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -19,8 +20,78 @@
   }
 }
 
+/* ---------- Base Body ---------- */
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ---------- Apple Pay Spinner ---------- */
+.applepay-spinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+  border: 3px solid #e5e5ea;
+  border-top-color: #111827;
+  animation: applepay-spin 0.7s linear infinite;
+}
+
+@keyframes applepay-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ---------- Apple Pay Check Circle ---------- */
+.applepay-check-circle {
+  width: 64px;
+  height: 64px;
+  border-radius: 9999px;
+  background-color: rgba(52, 199, 89, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: checkPop 0.28s ease-out;
+}
+
+.applepay-check-circle span {
+  font-size: 32px;
+  line-height: 1;
+  color: #34c759;
+  font-weight: 700;
+}
+
+/* Subtle pop animation for success bubble */
+@keyframes checkPop {
+  0% {
+    transform: scale(0.7);
+    opacity: 0.3;
+  }
+  60% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ---------- Overlay Fade ---------- */
+.applepay-overlay-fade {
+  animation: overlayFade 0.25s ease-out;
+}
+
+@keyframes overlayFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
