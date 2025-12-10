@@ -178,13 +178,38 @@ export function WalletScreen() {
   // ---- handlers ----
 
   function handleTransactionClick(tx: Transaction) {
-    // Only the prank transaction should open the details page
-    if (!tx.isPrank) return;
+    // Decide how this transaction should be interpreted on the details screen
+    const isPurchase =
+      tx.title === "Apple Store" || tx.title === "Starbucks";
+
+    const directionParam = isPurchase
+      ? "purchase"
+      : tx.direction === "out"
+      ? "out"
+      : "in";
+
+    // From / To mapping:
+    //  - "in":    money to prankster from tx.title (friend / phone / debit)
+    //  - "out":   money from prankster to tx.title (Shanice, etc.)
+    //  - "purchase": treat like outgoing purchase
+    let from = config.friendName || "Friend";
+    let to = config.pranksterName || "You";
+
+    if (directionParam === "in") {
+      // money is received by prankster
+      from = tx.title || from;
+      to = config.pranksterName || "You";
+    } else {
+      // out or purchase
+      from = config.pranksterName || "You";
+      to = tx.title || to;
+    }
 
     const params = new URLSearchParams({
       amount: tx.amount.toFixed(2),
-      from: tx.title || config.friendName || "Sender",
-      to: config.pranksterName || "You",
+      from,
+      to,
+      direction: directionParam,
     });
 
     router.push(`/transaction?${params.toString()}`);
@@ -346,7 +371,7 @@ export function WalletScreen() {
             overflow: "hidden",
             cursor: "pointer",
             width: "100%",
-            height: 210,
+            height: 230, // slightly taller for more Apple Cash-like proportions
           }}
         >
           {/* dotted overlay */}
@@ -457,7 +482,7 @@ export function WalletScreen() {
                   borderTop: index === 0 ? "none" : "1px solid #eee",
                   backgroundColor: "#fff",
                   textAlign: "left",
-                  cursor: tx.isPrank ? "pointer" : "default",
+                  cursor: "pointer",
                 }}
               >
                 <div
