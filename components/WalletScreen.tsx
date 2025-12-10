@@ -178,16 +178,23 @@ export function WalletScreen() {
   // ---- handlers ----
 
   function handleTransactionClick(tx: Transaction) {
-    if (!tx.isPrank) return;
+  // Only the prank transaction should open the details page
+  if (!tx.isPrank) return;
 
-    const params = new URLSearchParams({
-      amount: tx.amount.toFixed(2),
-      from: config.friendName,
-      to: config.pranksterName,
-    });
+  const params = new URLSearchParams({
+    // Use the actual amount stored on the transaction
+    amount: tx.amount.toFixed(2),
 
-    router.push(`/transaction?${params.toString()}`);
-  }
+    // Use the transaction title (what the row shows) as the "from" value
+    from: tx.title || config.friendName || "Sender",
+
+    // Use whatever the current cardholder name is as the "to" value
+    to: config.pranksterName || "You",
+  });
+
+  router.push(`/transaction?${params.toString()}`);
+}
+
 
   // Tap the card → show pending popup and lock in an amount
   function handleCardClick() {
