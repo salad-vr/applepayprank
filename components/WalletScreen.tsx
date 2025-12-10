@@ -64,7 +64,7 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   },
 ];
 
-type OverlayPhase = "hidden" | "pending" | "accepting" | "success";
+type OverlayPhase = "hidden" | "pending" | "success";
 
 export function WalletScreen() {
   const router = useRouter();
@@ -80,7 +80,6 @@ export function WalletScreen() {
   const [overlayPhase, setOverlayPhase] = useState<OverlayPhase>("hidden");
   const [pendingAmount, setPendingAmount] = useState<number | null>(null);
 
-  const confirmTimeoutRef = useRef<number | null>(null);
   const hideTimeoutRef = useRef<number | null>(null);
 
   // ---- helpers ----
@@ -170,9 +169,6 @@ export function WalletScreen() {
   // ---- cleanup timeouts on unmount ----
   useEffect(() => {
     return () => {
-      if (confirmTimeoutRef.current != null) {
-        window.clearTimeout(confirmTimeoutRef.current);
-      }
       if (hideTimeoutRef.current != null) {
         window.clearTimeout(hideTimeoutRef.current);
       }
@@ -194,10 +190,11 @@ export function WalletScreen() {
     router.push(`/transaction?${params.toString()}`);
   }
 
-  // Tap the card → show pending popup and lock in an amount
+  // Tap the card → show pending overlay and lock in an amount
   function handleCardClick() {
     if (overlayPhase !== "hidden") return;
 
+    // prime audio in a user gesture
     prime();
 
     const amount = generatePrankAmount(config);
@@ -205,39 +202,43 @@ export function WalletScreen() {
     setOverlayPhase("pending");
   }
 
-  // Tap anywhere on overlay while pending → trigger sound + success
+  // Tap overlay while pending → play sound immediately (user gesture) + commit
   function handleOverlayTap() {
     if (overlayPhase !== "pending" || pendingAmount == null) return;
 
-    setOverlayPhase("accepting");
+    const amount = pendingAmount;
 
-    confirmTimeoutRef.current = window.setTimeout(() => {
-      const amount = pendingAmount;
-      const newBalance = balance + amount;
+    // Play sound directly as part of the user click (most reliable)
+    play();
 
-      play();
-      setOverlayPhase("success");
-      setBalance(newBalance);
+    // Commit wallet updates
+    setBalance((prev) => prev + amount);
+    setTransactions((prev) => {
+      const prankTx: Transaction = {
+        id: `prank-${Date.now()}`,
+        title: config.friendName || "Friend",
+        subtitle: `Received • just now`,
+        amount,
+        direction: "in",
+        timeLabel: "Just now",
+        isPrank: true,
+      };
+      const next = [prankTx, ...prev];
+      // persist immediately as well for safety
+      persistWalletState((prev[0]?.amount ?? 0) + amount, next);
+      return next;
+    });
 
-      setTransactions((prev) => {
-        const prankTx: Transaction = {
-          id: `prank-${Date.now()}`,
-          title: config.friendName || "Friend",
-          subtitle: `Received • just now`,
-          amount,
-          direction: "in",
-          timeLabel: "Just now",
-          isPrank: true,
-        };
-        return [prankTx, ...prev];
-      });
+    setOverlayPhase("success");
 
-      // Let the success screen linger
-      hideTimeoutRef.current = window.setTimeout(() => {
-        setOverlayPhase("hidden");
-        setPendingAmount(null);
-      }, 3500);
-    }, 1000);
+    // Hide overlay after a bit (nice linger on success)
+    if (hideTimeoutRef.current != null) {
+      window.clearTimeout(hideTimeoutRef.current);
+    }
+    hideTimeoutRef.current = window.setTimeout(() => {
+      setOverlayPhase("hidden");
+      setPendingAmount(null);
+    }, 3500);
   }
 
   function handleInfoClick() {
