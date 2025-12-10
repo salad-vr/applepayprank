@@ -1,7 +1,10 @@
 // app/transaction/page.tsx
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+
+const CONFIG_STORAGE_KEY = "applepayprank-config";
 
 type TransactionPageProps = {
   searchParams?: {
@@ -12,19 +15,71 @@ type TransactionPageProps = {
 };
 
 export default function TransactionPage({ searchParams }: TransactionPageProps) {
+  // --- 1. Read values from URL (if present) ---
   const amountRaw = searchParams?.amount ?? "0.00";
-
-  // Safely parse amount
   const parsedAmount = Number.parseFloat(amountRaw || "0");
-  const amount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+  const initialAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
 
-  const fromName =
+  const initialFromName =
     (searchParams?.from && searchParams.from.trim()) || "Friend";
-  const toName = (searchParams?.to && searchParams.to.trim()) || "You";
+  const initialToName =
+    (searchParams?.to && searchParams.to.trim()) || "You";
+
+  // --- 2. State so we can override from localStorage on the client ---
+  const [amount, setAmount] = useState(initialAmount);
+  const [fromName, setFromName] = useState(initialFromName);
+  const [toName, setToName] = useState(initialToName);
+
+  // --- 3. Fallback: pull names + amount from saved prank config ---
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem(CONFIG_STORAGE_KEY);
+      if (!raw) return;
+
+      const cfg = JSON.parse(raw) as {
+        pranksterName?: string;
+        friendName?: string;
+        amountMode?: "fixed" | "randomRange";
+        fixedAmount?: number;
+      };
+
+      const cfgFriend =
+        typeof cfg.friendName === "string" ? cfg.friendName.trim() : "";
+      const cfgPrankster =
+        typeof cfg.pranksterName === "string"
+          ? cfg.pranksterName.trim()
+          : "";
+
+      const cfgFixedAmount =
+        cfg.amountMode === "fixed" && typeof cfg.fixedAmount === "number"
+          ? cfg.fixedAmount
+          : null;
+
+      // Only override if URL didn't give us anything useful
+      if ((!searchParams?.from || initialFromName === "Friend") && cfgFriend) {
+        setFromName(cfgFriend);
+      }
+
+      if ((!searchParams?.to || initialToName === "You") && cfgPrankster) {
+        setToName(cfgPrankster);
+      }
+
+      if (
+        (!searchParams?.amount || initialAmount === 0) &&
+        cfgFixedAmount !== null
+      ) {
+        setAmount(cfgFixedAmount);
+      }
+    } catch {
+      // If parsing fails, just keep the URL/default values
+    }
+  }, []); // run once on mount
 
   const formattedAmount = `$${amount.toFixed(2)}`;
 
-  // Simple "now" date/time for realism (doesn't need to be perfect for a prank)
+  // Simple "now" date/time for realism
   const now = new Date();
   const dateFormatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -36,8 +91,8 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
     minute: "2-digit",
   });
 
-  const dateLabel = dateFormatter.format(now);      // e.g. "Jan 3, 2025"
-  const timeLabel = timeFormatter.format(now);      // e.g. "4:19 PM"
+  const dateLabel = dateFormatter.format(now);
+  const timeLabel = timeFormatter.format(now);
   const dateTimeLine = `${dateLabel} at ${timeLabel} • iPhone via Apple Pay`;
 
   return (
@@ -109,7 +164,7 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             marginBottom: "1.1rem",
           }}
         >
-          {/* Apple Pay brand row (top-left, dark and clear) */}
+          {/* Apple Pay brand row */}
           <div
             style={{
               display: "flex",
@@ -276,7 +331,7 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
           </div>
         </section>
 
-        {/* Tiny hint / safety line to keep things light */}
+        {/* Tiny hint / safety line */}
         <p
           style={{
             fontSize: 11,
