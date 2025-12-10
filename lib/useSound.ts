@@ -3,106 +3,85 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-/**
- * iOS-friendly sound hook.
- *
- * Key ideas:
- * - Create a single HTMLAudioElement and preload it.
- * - `prime()` is meant to be called from a REAL user gesture
- *   (e.g. onClick). It "unlocks" audio on iOS by playing at
- *   volume 0 and immediately pausing.
- * - `play()` then reliably plays the sound, including when called
- *   later from timers (e.g. after your 5-second countdown).
- */
+type UseSoundOptions = {
+  volume?: number;
+};
 
-export function useSound(src: string) {
+/**
+ * iOS / PWA-friendly sound hook.
+ *
+ * - Creates ONE <audio> element and preloads it.
+ * - `prime()` MUST be called from a real user gesture (onClick/onTap).
+ *   It "unlocks" audio on Safari/iOS.
+ * - After that, `play()` can be called from timeouts, effects, etc.
+ */
+export function useSound(src: string, options?: UseSoundOptions) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const primedRef = useRef(false);
 
-  // Create / recreate the audio element whenever src changes
+  // Create + preload audio element once per src
   useEffect(() => {
     const audio = new Audio(src);
     audio.preload = "auto";
+    if (typeof options?.volume === "number") {
+      audio.volume = options.volume;
+    }
+
     audioRef.current = audio;
 
     return () => {
-      if (audioRef.current) {
-        try {
-          audioRef.current.pause();
-          // Clean up the src so iOS doesn’t hold resources forever
-          audioRef.current.src = "";
-          audioRef.current.load();
-        } catch {
-          // ignore
-        }
-        audioRef.current = null;
+      try {
+        audio.pause();
+      } catch {
+        // ignore
       }
+      audioRef.current = null;
+      primedRef.current = false;
     };
-  }, [src]);
+  }, [src, options?.volume]);
 
   /**
-   * Call this directly from a user gesture (e.g. onClick).
-   * It "unlocks" audio on iOS by doing a muted play/pause once.
+   * Call this FROM A REAL TAP (card press, etc.).
+   * It plays silently once to "unlock" audio on iOS.
    */
   const prime = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return;
-    if (primedRef.current) return;
+    if (!audio || primedRef.current) return;
 
-    const previousVolume = audio.volume;
-    audio.volume = 0;
-
+    // Try to play VERY briefly to satisfy Safari's gesture requirement.
+    audio.volume = options?.volume ?? 1;
     audio
       .play()
       .then(() => {
-        // Immediately pause + reset so there’s no audible blip
         audio.pause();
         audio.currentTime = 0;
-        audio.volume = previousVolume;
         primedRef.current = true;
-        console.log("[sound] primed successfully");
       })
-      .catch((err) => {
-        audio.volume = previousVolume;
-        console.log("[sound] prime blocked or failed:", err);
-        // Even if this fails, we tried; next real click may succeed.
+      .catch(() => {
+        // If this fails, we'll try again on the next tap.
       });
-  }, []);
+  }, [options?.volume]);
 
   /**
-   * Play the sound. Safe to call from timers AFTER at least one
-   * `prime()` from a user gesture has succeeded.
+   * Play the sound. Works reliably AFTER a successful prime().
    */
   const play = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) {
-      console.warn("[sound] no audio instance available");
-      return;
+    if (!audio) return;
+
+    try {
+      audio.currentTime = 0;
+      const maybePromise = audio.play();
+      if (maybePromise && typeof maybePromise.then === "function") {
+        maybePromise.catch((err) => {
+          // When Safari still complains, don't crash the UI
+          console.warn("[useSound] play blocked or failed", err);
+        });
+      }
+    } catch (err) {
+      console.warn("[useSound] play error", err);
     }
-
-    // Always reset to start
-    audio.currentTime = 0;
-
-    audio
-      .play()
-      .then(() => {
-        console.log("[sound] played:", src);
-      })
-      .catch((err) => {
-        console.error("[sound] play blocked or failed:", err);
-
-        // If iOS killed the audio element after suspend/resume,
-        // try rebuilding it for future calls.
-        try {
-          const newAudio = new Audio(src);
-          newAudio.preload = "auto";
-          audioRef.current = newAudio;
-          primedRef.current = false; // will need a new prime()
-        } catch {
-          // ignore
-        }
-      });
-  }, [src]);
+  }, []);
 
   return { play, prime };
 }
