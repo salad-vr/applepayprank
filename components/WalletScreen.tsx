@@ -178,23 +178,20 @@ export function WalletScreen() {
   // ---- handlers ----
 
   function handleTransactionClick(tx: Transaction) {
-  // Only the prank transaction should open the details page
-  if (!tx.isPrank) return;
+    // Only the prank transaction should open the details page
+    if (!tx.isPrank) return;
 
-  const params = new URLSearchParams({
-    // Use the actual amount stored on the transaction
-    amount: tx.amount.toFixed(2),
+    const params = new URLSearchParams({
+      // Use the actual amount stored on the transaction
+      amount: tx.amount.toFixed(2),
+      // Use the transaction title as "from" (this is what shows in the list)
+      from: tx.title || config.friendName || "Sender",
+      // Use the prankster/cardholder name as "to"
+      to: config.pranksterName || "You",
+    });
 
-    // Use the transaction title (what the row shows) as the "from" value
-    from: tx.title || config.friendName || "Sender",
-
-    // Use whatever the current cardholder name is as the "to" value
-    to: config.pranksterName || "You",
-  });
-
-  router.push(`/transaction?${params.toString()}`);
-}
-
+    router.push(`/transaction?${params.toString()}`);
+  }
 
   // Tap the card → show pending popup and lock in an amount
   function handleCardClick() {
@@ -213,15 +210,15 @@ export function WalletScreen() {
 
     setOverlayPhase("accepting");
 
-    // 1) after ~1s, play sound, show success, and commit wallet changes
+    // after ~1s, play sound, show success, and commit wallet changes
     confirmTimeoutRef.current = window.setTimeout(() => {
       play();
       const amount = pendingAmount;
 
       setOverlayPhase("success");
-      setBalance(prev => prev + amount);
+      setBalance((prev) => prev + amount);
 
-      setTransactions(prev => {
+      setTransactions((prev) => {
         const prankTx: Transaction = {
           id: `prank-${Date.now()}`,
           title: config.friendName || "Friend",
@@ -231,14 +228,17 @@ export function WalletScreen() {
           timeLabel: "Just now",
           isPrank: true,
         };
-        return [prankTx, ...prev];
+        const next = [prankTx, ...prev];
+        // extra safety: persist immediately as well
+        persistWalletState((prev ?? 0) + amount, next);
+        return next;
       });
 
-      // 2) hide overlay after a bit
+      // hide overlay after a bit (longer dwell for success)
       hideTimeoutRef.current = window.setTimeout(() => {
         setOverlayPhase("hidden");
         setPendingAmount(null);
-      }, 1800);
+      }, 3500); // ~3.5s on success screen
     }, 1000);
   }
 
@@ -456,7 +456,7 @@ export function WalletScreen() {
                   width: "100%",
                   padding: "0.75rem 0.9rem",
                   border: "none",
-                  borderTop: index === 0 ? "none" : "1px solid #eee",
+                  borderTop: index === 0 ? "none" : "1px solid "#eee",
                   backgroundColor: "#fff",
                   textAlign: "left",
                   cursor: tx.isPrank ? "pointer" : "default",
@@ -536,19 +536,30 @@ export function WalletScreen() {
                 textAlign: "center",
               }}
             >
+              {/* Darker & larger  Pay header */}
               <div
                 style={{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 6,
+                  gap: 10,
                   marginBottom: 18,
+                  color: "#111827",
                 }}
               >
-                <span style={{ fontSize: 22 }}>{"\uF8FF"}</span>
                 <span
                   style={{
-                    fontSize: 20,
+                    fontSize: 32,
+                    lineHeight: 1,
+                    display: "inline-block",
+                    color: "#111827",
+                  }}
+                >
+                  {"\uF8FF"}
+                </span>
+                <span
+                  style={{
+                    fontSize: 22,
                     fontWeight: 600,
                     letterSpacing: 0.4,
                     color: "#111827",
