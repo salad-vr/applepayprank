@@ -6,31 +6,49 @@ import Link from "next/link";
 
 const CONFIG_STORAGE_KEY = "applepayprank-config";
 
+type TransactionDirection = "in" | "out" | "purchase";
+
 type TransactionPageProps = {
   searchParams?: {
     amount?: string;
     from?: string;
     to?: string;
+    direction?: TransactionDirection | string;
   };
 };
 
 export default function TransactionPage({ searchParams }: TransactionPageProps) {
-  // --- 1. Read values from URL (if present) ---
-  const amountRaw = searchParams?.amount ?? "0.00";
-  const parsedAmount = Number.parseFloat(amountRaw || "0");
-  const initialAmount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+  // --- 1. Read & sanitize amount from URL (if present) ---
+  const rawAmountFromUrl = searchParams?.amount ?? "";
 
+  // strip anything that's not digit, dot, or minus (handles "$27.43", "27,43", etc.)
+  const cleanedAmount = (rawAmountFromUrl || "").replace(/[^0-9.\-]/g, "");
+
+  const parsedAmountFromUrl =
+    cleanedAmount.trim().length > 0 ? Number.parseFloat(cleanedAmount) : NaN;
+
+  const hasValidAmountFromUrl = Number.isFinite(parsedAmountFromUrl);
+  const initialAmount = hasValidAmountFromUrl ? parsedAmountFromUrl : 0;
+
+  // --- 2. Names from URL (if present) ---
   const initialFromName =
     (searchParams?.from && searchParams.from.trim()) || "Friend";
   const initialToName =
     (searchParams?.to && searchParams.to.trim()) || "You";
 
-  // --- 2. State so we can override from localStorage on the client ---
-  const [amount, setAmount] = useState(initialAmount);
+  // --- 3. Direction of transaction (for future other placeholders) ---
+  const directionParam = (searchParams?.direction || "").toLowerCase();
+  const direction: TransactionDirection =
+    directionParam === "out" || directionParam === "purchase"
+      ? (directionParam as TransactionDirection)
+      : "in";
+
+  // --- 4. State so we can override from localStorage on the client ---
+  const [amount, setAmount] = useState<number>(initialAmount);
   const [fromName, setFromName] = useState(initialFromName);
   const [toName, setToName] = useState(initialToName);
 
-  // --- 3. Fallback: pull names + amount from saved prank config ---
+  // --- 5. Fallback: pull names + amount from saved prank config ---
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -57,7 +75,7 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
           ? cfg.fixedAmount
           : null;
 
-      // Only override if URL didn't give us anything useful
+      // Only override names if URL didn't give us anything custom
       if ((!searchParams?.from || initialFromName === "Friend") && cfgFriend) {
         setFromName(cfgFriend);
       }
@@ -66,18 +84,29 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
         setToName(cfgPrankster);
       }
 
-      if (
-        (!searchParams?.amount || initialAmount === 0) &&
-        cfgFixedAmount !== null
-      ) {
+      // Only override amount if we DIDN'T get a valid amount from the URL
+      if (!hasValidAmountFromUrl && cfgFixedAmount !== null) {
         setAmount(cfgFixedAmount);
       }
     } catch {
       // If parsing fails, just keep the URL/default values.
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount
 
   const formattedAmount = `$${amount.toFixed(2)}`;
+
+  // --- 6. Status line based on direction (ready for other transactions) ---
+  let statusLine = "Money Received";
+  let statusColor = "#16a34a";
+
+  if (direction === "out") {
+    statusLine = "Money Sent";
+    statusColor = "#111827";
+  } else if (direction === "purchase") {
+    statusLine = "Purchase";
+    statusColor = "#111827";
+  }
 
   // Simple "now" date/time for realism
   const now = new Date();
@@ -220,16 +249,16 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             {fromName}
           </div>
 
-          {/* Status line */}
+          {/* Status line (varies by direction) */}
           <div
             style={{
               fontSize: 14,
-              color: "#16a34a",
+              color: statusColor,
               fontWeight: 500,
               marginBottom: 4,
             }}
           >
-            Money Received
+            {statusLine}
           </div>
 
           {/* Date / time / device */}
@@ -263,7 +292,9 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             }}
           >
             <span>From</span>
-            <span style={{ color: "#111827", fontWeight: 500 }}>{fromName}</span>
+            <span style={{ color: "#111827", fontWeight: 500 }}>
+              {fromName}
+            </span>
           </div>
 
           <div
@@ -276,7 +307,9 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             }}
           >
             <span>To</span>
-            <span style={{ color: "#111827", fontWeight: 500 }}>{toName}</span>
+            <span style={{ color: "#111827", fontWeight: 500 }}>
+              {toName}
+            </span>
           </div>
 
           <div
@@ -289,7 +322,9 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             }}
           >
             <span>Status</span>
-            <span style={{ color: "#16a34a", fontWeight: 500 }}>Completed</span>
+            <span style={{ color: "#16a34a", fontWeight: 500 }}>
+              Completed
+            </span>
           </div>
 
           <div
@@ -302,7 +337,9 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             }}
           >
             <span>Type</span>
-            <span>Instant Transfer</span>
+            <span>
+              {direction === "purchase" ? "Purchase" : "Instant Transfer"}
+            </span>
           </div>
 
           <div
