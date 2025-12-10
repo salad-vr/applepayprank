@@ -24,6 +24,22 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
 
   const formattedAmount = `$${amount.toFixed(2)}`;
 
+  // Simple "now" date/time for realism (doesn't need to be perfect for a prank)
+  const now = new Date();
+  const dateFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+  const timeFormatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
+  const dateLabel = dateFormatter.format(now);      // e.g. "Jan 3, 2025"
+  const timeLabel = timeFormatter.format(now);      // e.g. "4:19 PM"
+  const dateTimeLine = `${dateLabel} at ${timeLabel} • iPhone via Apple Pay`;
+
   return (
     <main
       style={{
@@ -93,24 +109,32 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             marginBottom: "1.1rem",
           }}
         >
-          {/* Apple Pay pill */}
+          {/* Apple Pay brand row (top-left, dark and clear) */}
           <div
             style={{
-              display: "inline-flex",
+              display: "flex",
               alignItems: "center",
               gap: 6,
-              padding: "4px 10px",
-              borderRadius: 999,
-              backgroundColor: "#f3f4f6",
               marginBottom: 10,
+              color: "#111827",
             }}
           >
-            <span style={{ fontSize: 16 }}>{"\uF8FF"}</span>
             <span
               style={{
-                fontSize: 13,
-                fontWeight: 500,
+                fontSize: 20,
+                lineHeight: 1,
+                display: "inline-block",
+                color: "#111827",
+              }}
+            >
+              {"\uF8FF"}
+            </span>
+            <span
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
                 letterSpacing: 0.25,
+                color: "#111827",
               }}
             >
               Pay
@@ -129,38 +153,39 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             {formattedAmount}
           </div>
 
+          {/* Big name line (who it looks like it's from) */}
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              marginBottom: 4,
+              color: "#111827",
+            }}
+          >
+            {fromName}
+          </div>
+
           {/* Status line */}
           <div
             style={{
               fontSize: 14,
               color: "#16a34a",
               fontWeight: 500,
-              marginBottom: 10,
+              marginBottom: 4,
             }}
           >
             Money Received
           </div>
 
-          {/* From / To */}
+          {/* Date / time / device */}
           <div
             style={{
               fontSize: 13,
               color: "#6b7280",
-              lineHeight: 1.5,
+              marginBottom: 10,
             }}
           >
-            <div style={{ marginBottom: 2 }}>
-              From{" "}
-              <span style={{ color: "#111827", fontWeight: 500 }}>
-                {fromName}
-              </span>
-            </div>
-            <div>
-              To{" "}
-              <span style={{ color: "#111827", fontWeight: 500 }}>
-                {toName}
-              </span>
-            </div>
+            {dateTimeLine}
           </div>
 
           {/* Divider */}
@@ -168,11 +193,37 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             style={{
               height: 1,
               backgroundColor: "#e5e7eb",
-              margin: "0.9rem 0 0.7rem",
+              margin: "0.7rem 0 0.7rem",
             }}
           />
 
-          {/* Meta rows */}
+          {/* Detail rows */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              color: "#6b7280",
+              marginBottom: 4,
+            }}
+          >
+            <span>From</span>
+            <span style={{ color: "#111827", fontWeight: 500 }}>{fromName}</span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              color: "#6b7280",
+              marginBottom: 4,
+            }}
+          >
+            <span>To</span>
+            <span style={{ color: "#111827", fontWeight: 500 }}>{toName}</span>
+          </div>
+
           <div
             style={{
               display: "flex",
@@ -197,6 +248,19 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
           >
             <span>Type</span>
             <span>Instant Transfer</span>
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 13,
+              color: "#6b7280",
+              marginBottom: 4,
+            }}
+          >
+            <span>Device</span>
+            <span>iPhone • Apple Pay</span>
           </div>
 
           <div
