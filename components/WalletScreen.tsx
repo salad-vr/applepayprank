@@ -1,20 +1,23 @@
 // components/WalletScreen.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSound } from "@/lib/useSound";
-import { usePrankEngine } from "@/lib/usePrankEngine";
 import type { PrankConfig, Transaction } from "@/lib/types";
 
+const CONFIG_STORAGE_KEY = "applepayprank-config";
+const WALLET_STORAGE_KEY = "applepayprank-wallet-v1";
+
 const BASE_BALANCE = 105;
-const STORAGE_KEY = "applepayprank-config";
 
 const DEFAULT_CONFIG: PrankConfig = {
   pranksterName: "You",
   friendName: "Apple Pay",
   amountMode: "fixed",
   fixedAmount: 67.0,
+  minAmount: 15,
+  maxAmount: 85,
 };
 
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -60,57 +63,106 @@ const INITIAL_TRANSACTIONS: Transaction[] = [
   },
 ];
 
+type OverlayPhase = "hidden" | "pending" | "accepting" | "success";
+
 export function WalletScreen() {
   const router = useRouter();
   const { play, prime } = useSound("/ding.mp3");
 
   const [config, setConfig] = useState<PrankConfig>(DEFAULT_CONFIG);
-  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
 
-  // Load config from localStorage
+  const [balance, setBalance] = useState<number>(BASE_BALANCE);
+  const [transactions, setTransactions] = useState<Transaction[]>(INITIAL_TRANSACTIONS);
+  const [walletLoaded, setWalletLoaded] = useState(false);
+
+  const [overlayPhase, setOverlayPhase] = useState<OverlayPhase>("hidden");
+  const [pendingAmount, setPendingAmount] = useState<number | null>(null);
+
+  const confirmTimeoutRef = useRef<number | null>(null);
+  const hideTimeoutRef = useRef<number | null>(null);
+
+  // ---- helpers ----
+
+  function generatePrankAmount(cfg: PrankConfig): number {
+    if (cfg.amountMode === "fixed" && typeof cfg.fixedAmount === "number") {
+      return Number(cfg.fixedAmount.toFixed(2));
+    }
+
+    const min = typeof cfg.minAmount === "number" ? cfg.minAmount : 15;
+    const max = typeof cfg.maxAmount === "number" ? cfg.maxAmount : 85;
+    const raw = Math.random() * (max - min) + min;
+    return Number(raw.toFixed(2));
+  }
+
+  function persistWalletState(nextBalance: number, nextTransactions: Transaction[]) {
+    if (typeof window === "undefined") return;
+    const payload = {
+      balance: nextBalance,
+      transactions: nextTransactions,
+    };
+    window.localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify(payload));
+  }
+
+  // ---- load config + wallet on mount ----
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
+      // config
+      const rawConfig = window.localStorage.getItem(CONFIG_STORAGE_KEY);
+      if (rawConfig) {
+        const parsed: Partial<PrankConfig> = JSON.parse(rawConfig);
+        setConfig({ ...DEFAULT_CONFIG, ...parsed });
+      }
 
-      const parsed: Partial<PrankConfig> = JSON.parse(raw);
-      const merged: PrankConfig = { ...DEFAULT_CONFIG, ...parsed };
-      setConfig(merged);
+      // wallet
+      const rawWallet = window.localStorage.getItem(WALLET_STORAGE_KEY);
+      if (rawWallet) {
+        const parsed = JSON.parse(rawWallet);
+        if (
+          parsed &&
+          typeof parsed.balance === "number" &&
+          Array.isArray(parsed.transactions)
+        ) {
+          setBalance(parsed.balance);
+          setTransactions(parsed.transactions);
+        } else {
+          setBalance(BASE_BALANCE);
+          setTransactions(INITIAL_TRANSACTIONS);
+        }
+      } else {
+        setBalance(BASE_BALANCE);
+        setTransactions(INITIAL_TRANSACTIONS);
+      }
     } catch (err) {
-      console.warn("[wallet] failed to load config", err);
+      console.warn("[wallet] failed to load state", err);
+      setBalance(BASE_BALANCE);
+      setTransactions(INITIAL_TRANSACTIONS);
+    } finally {
+      setWalletLoaded(true);
     }
   }, []);
 
-  const { status, displayBalance, prankAmount, triggerPrank } = usePrankEngine(
-    BASE_BALANCE,
-    config,
-    { onPlaySound: play }
-  );
-
-  // Insert prank transaction once completed
+  // ---- persist when balance/transactions change ----
   useEffect(() => {
-    if (status === "completed" && prankAmount != null) {
-      setTransactions(prev => {
-        if (prev.some(t => t.isPrank)) return prev;
+    if (!walletLoaded) return;
+    persistWalletState(balance, transactions);
+  }, [balance, transactions, walletLoaded]);
 
-        const prankTx: Transaction = {
-          id: "prank",
-          title: config.friendName || "Friend",
-          subtitle: `Received from ${config.friendName || "Friend"} • Just now`,
-          amount: prankAmount,
-          direction: "in",
-          timeLabel: "Just now",
-          isPrank: true,
-        };
+  // ---- cleanup timeouts on unmount ----
+  useEffect(() => {
+    return () => {
+      if (confirmTimeoutRef.current != null) {
+        window.clearTimeout(confirmTimeoutRef.current);
+      }
+      if (hideTimeoutRef.current != null) {
+        window.clearTimeout(hideTimeoutRef.current);
+      }
+    };
+  }, []);
 
-        return [prankTx, ...prev];
-      });
-    }
-  }, [status, prankAmount, config]);
+  // ---- handlers ----
 
-  // Navigation for clicking prank transaction
   function handleTransactionClick(tx: Transaction) {
     if (!tx.isPrank) return;
 
@@ -123,10 +175,50 @@ export function WalletScreen() {
     router.push(`/transaction?${params.toString()}`);
   }
 
-  // Secret card tap → plays sound + sends money
+  // Tap the card → show pending popup and lock in an amount
   function handleCardClick() {
+    if (overlayPhase !== "hidden") return;
+
     prime();
-    triggerPrank();
+
+    const amount = generatePrankAmount(config);
+    setPendingAmount(amount);
+    setOverlayPhase("pending");
+  }
+
+  // Tap anywhere on overlay while pending → trigger sound + success
+  function handleOverlayTap() {
+    if (overlayPhase !== "pending" || pendingAmount == null) return;
+
+    setOverlayPhase("accepting");
+
+    // 1) after ~1s, play sound, show success, and commit wallet changes
+    confirmTimeoutRef.current = window.setTimeout(() => {
+      play();
+      const amount = pendingAmount;
+
+      setOverlayPhase("success");
+      setBalance(prev => prev + amount);
+
+      setTransactions(prev => {
+        const prankTx: Transaction = {
+          id: `prank-${Date.now()}`,
+          title: config.friendName || "Friend",
+          subtitle: `Received • just now`,
+          amount,
+          direction: "in",
+          timeLabel: "Just now",
+          isPrank: true,
+        };
+        return [prankTx, ...prev];
+      });
+
+      // 2) hide overlay after a bit
+      hideTimeoutRef.current = window.setTimeout(() => {
+        setOverlayPhase("hidden");
+        setPendingAmount(null);
+      }, 1800);
+    }, 1000);
   }
 
   function handleInfoClick() {
@@ -153,7 +245,7 @@ export function WalletScreen() {
         fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
       }}
     >
-      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+      <div style={{ maxWidth: 480, margin: "0 auto", position: "relative" }}>
         {/* Header */}
         <header
           style={{
@@ -291,7 +383,7 @@ export function WalletScreen() {
               }}
             >
               <div style={{ fontSize: "2.2rem", fontWeight: 600, letterSpacing: 0.3 }}>
-                ${displayBalance.toFixed(2)}
+                ${balance.toFixed(2)}
               </div>
 
               <div style={{ textAlign: "right" }}>
@@ -396,6 +488,114 @@ export function WalletScreen() {
             ))}
           </div>
         </section>
+
+        {/* Apple Pay overlay */}
+        {overlayPhase !== "hidden" && (
+          <div
+            onClick={handleOverlayTap}
+            className="applepay-overlay-fade"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 50,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(0,0,0,0.35)",
+              backdropFilter: "blur(10px)",
+            }}
+          >
+            <div
+              style={{
+                width: "min(380px, 100% - 40px)",
+                borderRadius: 24,
+                backgroundColor: "#fff",
+                boxShadow: "0 18px 45px rgba(0,0,0,0.35)",
+                padding: "24px 28px 28px",
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 6,
+                  marginBottom: 18,
+                }}
+              >
+                <span style={{ fontSize: 22 }}>{"\uF8FF"}</span>
+                <span
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    letterSpacing: 0.4,
+                  }}
+                >
+                  Pay
+                </span>
+              </div>
+
+              {overlayPhase === "pending" && (
+                <>
+                  <div className="applepay-spinner" style={{ margin: "0 auto 18px" }} />
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      marginBottom: 4,
+                    }}
+                  >
+                    Verifying…
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Please wait
+                  </div>
+                </>
+              )}
+
+              {overlayPhase === "success" && (
+                <>
+                  <div className="applepay-check-circle" style={{ margin: "0 auto 18px" }}>
+                    <span>✓</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      color: "#1fb152",
+                      marginBottom: 4,
+                    }}
+                  >
+                    Payment Received
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 22,
+                      fontWeight: 700,
+                      marginBottom: 2,
+                    }}
+                  >
+                    ${pendingAmount != null ? pendingAmount.toFixed(2) : "0.00"}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#6b7280",
+                    }}
+                  >
+                    from {config.friendName || "Friend"}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );
