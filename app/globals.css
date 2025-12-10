@@ -80,11 +80,12 @@ body {
   border-radius: 24px;
   background: #050505;
   color: #f9fafb;
-  padding: 18px 20px 22px;
+  padding: 20px 22px 24px;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65);
 
-  /* make the card slightly taller, closer to real Apple Cash */
-  aspect-ratio: 1.55 / 1; /* width / height */
+  /* make the card clearly taller – closer to the real Apple Cash */
+  aspect-ratio: 1.35 / 1; /* width / height -> more height than before */
+  min-height: 190px;       /* safety so it never looks squished */
 }
 
 /* optional subtle dotted pattern like Apple Cash */
