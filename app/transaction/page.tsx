@@ -1,9 +1,10 @@
 // app/transaction/page.tsx
+"use client";
 
 import Link from "next/link";
 
 type TransactionPageProps = {
-  searchParams: {
+  searchParams?: {
     amount?: string;
     from?: string;
     to?: string;
@@ -11,11 +12,15 @@ type TransactionPageProps = {
 };
 
 export default function TransactionPage({ searchParams }: TransactionPageProps) {
-  const amountRaw = searchParams.amount ?? "0.00";
-  const amount = Number.parseFloat(amountRaw || "0") || 0;
+  const amountRaw = searchParams?.amount ?? "0.00";
 
-  const fromName = (searchParams.from ?? "Friend").trim() || "Friend";
-  const toName = (searchParams.to ?? "You").trim() || "You";
+  // Safely parse amount
+  const parsedAmount = Number.parseFloat(amountRaw || "0");
+  const amount = Number.isFinite(parsedAmount) ? parsedAmount : 0;
+
+  const fromName =
+    (searchParams?.from && searchParams.from.trim()) || "Friend";
+  const toName = (searchParams?.to && searchParams.to.trim()) || "You";
 
   const formattedAmount = `$${amount.toFixed(2)}`;
 
