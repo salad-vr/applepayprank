@@ -73,7 +73,7 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
         setAmount(cfgFixedAmount);
       }
     } catch {
-      // If parsing fails, just keep the URL/default values
+      // If parsing fails, just keep the URL/default values.
     }
   }, []); // run once on mount
 
