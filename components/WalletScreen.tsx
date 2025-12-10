@@ -223,10 +223,7 @@ export function WalletScreen() {
         timeLabel: "Just now",
         isPrank: true,
       };
-      const next = [prankTx, ...prev];
-      // persist immediately as well for safety
-      persistWalletState((prev[0]?.amount ?? 0) + amount, next);
-      return next;
+      return [prankTx, ...prev];
     });
 
     setOverlayPhase("success");
