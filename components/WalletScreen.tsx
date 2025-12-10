@@ -16,8 +16,9 @@ const DEFAULT_CONFIG: PrankConfig = {
   friendName: "Apple Pay",
   amountMode: "fixed",
   fixedAmount: 67.0,
-  minAmount: 15,
-  maxAmount: 85,
+  minAmount: 10,
+  maxAmount: 50,
+  startingBalance: 105,
 };
 
 const INITIAL_TRANSACTIONS: Transaction[] = [
@@ -88,8 +89,8 @@ export function WalletScreen() {
       return Number(cfg.fixedAmount.toFixed(2));
     }
 
-    const min = typeof cfg.minAmount === "number" ? cfg.minAmount : 15;
-    const max = typeof cfg.maxAmount === "number" ? cfg.maxAmount : 85;
+    const min = typeof cfg.minAmount === "number" ? cfg.minAmount : 10;
+    const max = typeof cfg.maxAmount === "number" ? cfg.maxAmount : 50;
     const raw = Math.random() * (max - min) + min;
     return Number(raw.toFixed(2));
   }
@@ -108,14 +109,18 @@ export function WalletScreen() {
     if (typeof window === "undefined") return;
 
     try {
-      // config
+      // Load config
       const rawConfig = window.localStorage.getItem(CONFIG_STORAGE_KEY);
+      let resolvedConfig: PrankConfig = DEFAULT_CONFIG;
+
       if (rawConfig) {
         const parsed: Partial<PrankConfig> = JSON.parse(rawConfig);
-        setConfig({ ...DEFAULT_CONFIG, ...parsed });
+        resolvedConfig = { ...DEFAULT_CONFIG, ...parsed };
       }
 
-      // wallet
+      setConfig(resolvedConfig);
+
+      // Load wallet
       const rawWallet = window.localStorage.getItem(WALLET_STORAGE_KEY);
       if (rawWallet) {
         const parsed = JSON.parse(rawWallet);
@@ -127,16 +132,25 @@ export function WalletScreen() {
           setBalance(parsed.balance);
           setTransactions(parsed.transactions);
         } else {
-          setBalance(BASE_BALANCE);
+          const start =
+            typeof resolvedConfig.startingBalance === "number"
+              ? resolvedConfig.startingBalance
+              : BASE_BALANCE;
+          setBalance(start);
           setTransactions(INITIAL_TRANSACTIONS);
         }
       } else {
-        setBalance(BASE_BALANCE);
+        const start =
+          typeof resolvedConfig.startingBalance === "number"
+            ? resolvedConfig.startingBalance
+            : BASE_BALANCE;
+        setBalance(start);
         setTransactions(INITIAL_TRANSACTIONS);
       }
     } catch (err) {
       console.warn("[wallet] failed to load state", err);
-      setBalance(BASE_BALANCE);
+      setConfig(DEFAULT_CONFIG);
+      setBalance(DEFAULT_CONFIG.startingBalance ?? BASE_BALANCE);
       setTransactions(INITIAL_TRANSACTIONS);
     } finally {
       setWalletLoaded(true);
@@ -530,6 +544,7 @@ export function WalletScreen() {
                     fontSize: 20,
                     fontWeight: 600,
                     letterSpacing: 0.4,
+                    color: "#111827",
                   }}
                 >
                   Pay
@@ -544,6 +559,7 @@ export function WalletScreen() {
                       fontSize: 18,
                       fontWeight: 600,
                       marginBottom: 4,
+                      color: "#111827",
                     }}
                   >
                     Verifying…
@@ -551,7 +567,7 @@ export function WalletScreen() {
                   <div
                     style={{
                       fontSize: 13,
-                      color: "#6b7280",
+                      color: "#4b5563",
                     }}
                   >
                     Please wait
@@ -579,6 +595,7 @@ export function WalletScreen() {
                       fontSize: 22,
                       fontWeight: 700,
                       marginBottom: 2,
+                      color: "#111827",
                     }}
                   >
                     ${pendingAmount != null ? pendingAmount.toFixed(2) : "0.00"}
