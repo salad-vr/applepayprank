@@ -102,7 +102,10 @@ export default function InfoPage() {
     };
 
     if (typeof window !== "undefined") {
+      // Save config
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
+      // Clear wallet cache so new starting balance + settings apply immediately
+      window.localStorage.removeItem(WALLET_STORAGE_KEY);
     }
 
     setTimeout(() => {
@@ -111,16 +114,14 @@ export default function InfoPage() {
     }, 150);
   }
 
-  function handleCancel() {
-    router.push("/");
-  }
-
   function handleResetWallet() {
     if (typeof window === "undefined") return;
 
     try {
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
-      setResetMessage("Balance and transactions reset. Next open will re-seed defaults.");
+      setResetMessage(
+        "Card reset. Next time you open the wallet, it will start fresh from your starting balance."
+      );
       setTimeout(() => setResetMessage(null), 2500);
     } catch (err) {
       console.warn("[info] failed to reset wallet", err);
@@ -128,11 +129,6 @@ export default function InfoPage() {
       setTimeout(() => setResetMessage(null), 2500);
     }
   }
-
-  const previewAmount =
-    amountMode === "fixed"
-      ? fixedAmount || "0.00"
-      : `${minAmount || "10"}–${maxAmount || "50"}`;
 
   const previewLine =
     amountMode === "fixed"
@@ -163,18 +159,8 @@ export default function InfoPage() {
             position: "relative",
           }}
         >
-          <button
-            onClick={handleCancel}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#007aff",
-              fontSize: 17,
-              fontWeight: 500,
-            }}
-          >
-            Wallet
-          </button>
+          {/* Left spacer to keep title centered */}
+          <div style={{ width: 56 }} />
 
           <div
             style={{
@@ -197,16 +183,20 @@ export default function InfoPage() {
             </span>
           </div>
 
+          {/* Black Save button on the right */}
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
-              background: "none",
+              backgroundColor: "#000000",
               border: "none",
-              color: saving ? "#9ca3af" : "#007aff",
-              fontSize: 17,
+              color: "#ffffff",
+              fontSize: 15,
               fontWeight: 600,
-              opacity: saving ? 0.7 : 1,
+              padding: "6px 14px",
+              borderRadius: 999,
+              minWidth: 72,
+              opacity: saving ? 0.85 : 1,
             }}
           >
             Save
@@ -251,18 +241,9 @@ export default function InfoPage() {
           </div>
           <div
             style={{
-              fontSize: 26,
-              fontWeight: 600,
-              marginBottom: 4,
-              color: "#111827", // darker, more readable
-            }}
-          >
-            {amountMode === "fixed" ? `$${previewAmount}` : `$${previewAmount}`}
-          </div>
-          <div
-            style={{
-              fontSize: 13,
-              color: "#6b7280",
+              fontSize: 17,
+              lineHeight: 1.4,
+              color: "#111827",
             }}
           >
             {previewLine}
@@ -720,7 +701,7 @@ export default function InfoPage() {
                 fontWeight: 500,
               }}
             >
-              Reset All Transactions
+              Reset card &amp; history
             </span>
             <span
               style={{
@@ -728,7 +709,7 @@ export default function InfoPage() {
                 color: "#9ca3af",
               }}
             >
-              Clear balance & history
+              Start fresh from your starting balance
             </span>
           </button>
 
