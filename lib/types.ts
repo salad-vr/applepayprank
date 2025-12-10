@@ -1,11 +1,36 @@
 // lib/types.ts
 
 export type PrankConfig = {
-  friendName: string;
+  /**
+   * The person "receiving" the money – usually you.
+   */
   pranksterName: string;
+
+  /**
+   * The person "sending" the money – the friend you're pretending sent it.
+   */
+  friendName: string;
+
+  /**
+   * Mode for how the prank amount is chosen.
+   * - "fixed" → always use fixedAmount
+   * - "range" → randomly choose between minAmount and maxAmount
+   */
   amountMode: "fixed" | "range";
+
+  /**
+   * Exact amount to show when amountMode === "fixed".
+   */
   fixedAmount?: number;
+
+  /**
+   * Minimum value for random amounts (when amountMode === "range").
+   */
   minAmount?: number;
+
+  /**
+   * Maximum value for random amounts (when amountMode === "range").
+   */
   maxAmount?: number;
 };
 
@@ -18,5 +43,10 @@ export type Transaction = {
   amount: number;
   direction: TransactionDirection;
   timeLabel: string;
-  isPrank?: boolean; // we can style / track the prank row later
+
+  /**
+   * Marks the transaction as one created by the prank flow.
+   * Used so we can treat it specially (click-through, styling, etc.).
+   */
+  isPrank?: boolean;
 };
