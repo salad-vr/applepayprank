@@ -13,8 +13,9 @@ const DEFAULT_CONFIG: PrankConfig = {
   friendName: "Apple Pay",
   amountMode: "fixed",
   fixedAmount: 67.0,
-  minAmount: 15,
-  maxAmount: 85,
+  minAmount: 10,
+  maxAmount: 50,
+  startingBalance: 105,
 };
 
 export default function InfoPage() {
@@ -25,8 +26,9 @@ export default function InfoPage() {
   const [friendName, setFriendName] = useState(DEFAULT_CONFIG.friendName);
   const [amountMode, setAmountMode] = useState<PrankConfig["amountMode"]>("fixed");
   const [fixedAmount, setFixedAmount] = useState("67.00");
-  const [minAmount, setMinAmount] = useState("15");
-  const [maxAmount, setMaxAmount] = useState("85");
+  const [minAmount, setMinAmount] = useState("10");
+  const [maxAmount, setMaxAmount] = useState("50");
+  const [startingBalance, setStartingBalance] = useState("105");
 
   const [saving, setSaving] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -59,13 +61,19 @@ export default function InfoPage() {
       if (typeof parsed.minAmount === "number") {
         setMinAmount(parsed.minAmount.toString());
       } else {
-        setMinAmount((DEFAULT_CONFIG.minAmount ?? 15).toString());
+        setMinAmount((DEFAULT_CONFIG.minAmount ?? 10).toString());
       }
 
       if (typeof parsed.maxAmount === "number") {
         setMaxAmount(parsed.maxAmount.toString());
       } else {
-        setMaxAmount((DEFAULT_CONFIG.maxAmount ?? 85).toString());
+        setMaxAmount((DEFAULT_CONFIG.maxAmount ?? 50).toString());
+      }
+
+      if (typeof parsed.startingBalance === "number") {
+        setStartingBalance(parsed.startingBalance.toString());
+      } else if (typeof DEFAULT_CONFIG.startingBalance === "number") {
+        setStartingBalance(DEFAULT_CONFIG.startingBalance.toString());
       }
     } catch (err) {
       console.warn("[info] failed to load config", err);
@@ -81,6 +89,7 @@ export default function InfoPage() {
     const fixed = parseFloat(fixedAmount || "0") || 0;
     const min = parseFloat(minAmount || "0") || 0;
     const max = parseFloat(maxAmount || "0") || 0;
+    const starting = parseFloat(startingBalance || "0") || 0;
 
     const config: PrankConfig = {
       pranksterName: normalizedPrankster,
@@ -89,6 +98,7 @@ export default function InfoPage() {
       fixedAmount: fixed,
       minAmount: min,
       maxAmount: max,
+      startingBalance: starting,
     };
 
     if (typeof window !== "undefined") {
@@ -122,15 +132,15 @@ export default function InfoPage() {
   const previewAmount =
     amountMode === "fixed"
       ? fixedAmount || "0.00"
-      : `${minAmount || "15"}–${maxAmount || "85"}`;
+      : `${minAmount || "10"}–${maxAmount || "50"}`;
 
   const previewLine =
     amountMode === "fixed"
       ? `You'll appear to receive $${fixedAmount || "0.00"} from ${
           friendName.trim() || DEFAULT_CONFIG.friendName
         }.`
-      : `You'll appear to receive a random amount between $${minAmount || "15"} and $${
-          maxAmount || "85"
+      : `You'll appear to receive a random amount between $${minAmount || "10"} and $${
+          maxAmount || "50"
         } from ${friendName.trim() || DEFAULT_CONFIG.friendName}.`;
 
   return (
@@ -244,6 +254,7 @@ export default function InfoPage() {
               fontSize: 26,
               fontWeight: 600,
               marginBottom: 4,
+              color: "#111827", // darker, more readable
             }}
           >
             {amountMode === "fixed" ? `$${previewAmount}` : `$${previewAmount}`}
@@ -461,7 +472,7 @@ export default function InfoPage() {
                     inputMode="decimal"
                     value={minAmount}
                     onChange={(e) => setMinAmount(e.target.value)}
-                    placeholder="15"
+                    placeholder="10"
                     style={{
                       border: "none",
                       outline: "none",
@@ -507,7 +518,7 @@ export default function InfoPage() {
                     inputMode="decimal"
                     value={maxAmount}
                     onChange={(e) => setMaxAmount(e.target.value)}
-                    placeholder="85"
+                    placeholder="50"
                     style={{
                       border: "none",
                       outline: "none",
@@ -615,6 +626,67 @@ export default function InfoPage() {
               This is who it will look like the money was sent to.
             </div>
           </div>
+
+          {/* Starting balance */}
+          <div
+            style={{
+              padding: "0.75rem 0.9rem",
+              borderTop: "1px solid #e5e7eb",
+              display: "flex",
+              flexDirection: "column",
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 15,
+                color: "#111827",
+              }}
+            >
+              Starting balance on card
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 16,
+                  marginRight: 4,
+                  color: "#111827",
+                }}
+              >
+                $
+              </span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={startingBalance}
+                onChange={(e) => setStartingBalance(e.target.value)}
+                placeholder="105"
+                style={{
+                  border: "none",
+                  outline: "none",
+                  fontSize: 16,
+                  padding: "4px 0",
+                  background: "transparent",
+                  color: "#111827",
+                  flex: 1,
+                }}
+              />
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "#6b7280",
+              }}
+            >
+              This is the balance your card shows when there&apos;s no saved history
+              yet (or after you reset transactions).
+            </div>
+          </div>
         </section>
 
         {/* Reset & disclaimer */}
@@ -708,4 +780,3 @@ export default function InfoPage() {
     </main>
   );
 }
-
