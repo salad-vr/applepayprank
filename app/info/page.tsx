@@ -5,30 +5,67 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PrankConfig } from "@/lib/types";
 
-const STORAGE_KEY = "applepayprank-config";
+const CONFIG_STORAGE_KEY = "applepayprank-config";
+const WALLET_STORAGE_KEY = "applepayprank-wallet-v1";
+
+const DEFAULT_CONFIG: PrankConfig = {
+  pranksterName: "You",
+  friendName: "Apple Pay",
+  amountMode: "fixed",
+  fixedAmount: 67.0,
+  minAmount: 15,
+  maxAmount: 85,
+};
 
 export default function InfoPage() {
   const router = useRouter();
 
-  const [pranksterName, setPranksterName] = useState("You"); // receiver (you)
-  const [friendName, setFriendName] = useState(""); // friend sending money (empty -> Apple Pay)
-  const [amount, setAmount] = useState("27.43"); // fixed prank amount
+  // Local editable state
+  const [pranksterName, setPranksterName] = useState(DEFAULT_CONFIG.pranksterName);
+  const [friendName, setFriendName] = useState(DEFAULT_CONFIG.friendName);
+  const [amountMode, setAmountMode] = useState<PrankConfig["amountMode"]>("fixed");
+  const [fixedAmount, setFixedAmount] = useState("67.00");
+  const [minAmount, setMinAmount] = useState("15");
+  const [maxAmount, setMaxAmount] = useState("85");
+
+  const [saving, setSaving] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
 
   // Load saved config (if any)
   useEffect(() => {
     if (typeof window === "undefined") return;
+
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
+      const raw = window.localStorage.getItem(CONFIG_STORAGE_KEY);
       if (!raw) return;
+
       const parsed: Partial<PrankConfig> = JSON.parse(raw);
 
-      if (parsed.pranksterName) setPranksterName(parsed.pranksterName);
-      if (parsed.friendName) setFriendName(parsed.friendName);
-      if (
-        parsed.amountMode === "fixed" &&
-        typeof parsed.fixedAmount === "number"
-      ) {
-        setAmount(parsed.fixedAmount.toFixed(2));
+      setPranksterName(parsed.pranksterName ?? DEFAULT_CONFIG.pranksterName);
+      setFriendName(parsed.friendName ?? DEFAULT_CONFIG.friendName);
+
+      if (parsed.amountMode === "range") {
+        setAmountMode("range");
+      } else {
+        setAmountMode("fixed");
+      }
+
+      if (typeof parsed.fixedAmount === "number") {
+        setFixedAmount(parsed.fixedAmount.toFixed(2));
+      } else {
+        setFixedAmount((DEFAULT_CONFIG.fixedAmount ?? 67).toFixed(2));
+      }
+
+      if (typeof parsed.minAmount === "number") {
+        setMinAmount(parsed.minAmount.toString());
+      } else {
+        setMinAmount((DEFAULT_CONFIG.minAmount ?? 15).toString());
+      }
+
+      if (typeof parsed.maxAmount === "number") {
+        setMaxAmount(parsed.maxAmount.toString());
+      } else {
+        setMaxAmount((DEFAULT_CONFIG.maxAmount ?? 85).toString());
       }
     } catch (err) {
       console.warn("[info] failed to load config", err);
@@ -36,25 +73,65 @@ export default function InfoPage() {
   }, []);
 
   function handleSave() {
-    const fixedAmount = parseFloat(amount || "0") || 0;
+    setSaving(true);
+
+    const normalizedPrankster = pranksterName.trim() || DEFAULT_CONFIG.pranksterName;
+    const normalizedFriend = friendName.trim() || DEFAULT_CONFIG.friendName;
+
+    const fixed = parseFloat(fixedAmount || "0") || 0;
+    const min = parseFloat(minAmount || "0") || 0;
+    const max = parseFloat(maxAmount || "0") || 0;
 
     const config: PrankConfig = {
-      pranksterName: pranksterName.trim() || "You",
-      friendName: friendName.trim() || "Apple Pay",
-      amountMode: "fixed",
-      fixedAmount,
+      pranksterName: normalizedPrankster,
+      friendName: normalizedFriend,
+      amountMode,
+      fixedAmount: fixed,
+      minAmount: min,
+      maxAmount: max,
     };
 
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+      window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
     }
 
-    router.push("/"); // back to main screen
+    setTimeout(() => {
+      setSaving(false);
+      router.push("/"); // back to main screen
+    }, 150);
   }
 
   function handleCancel() {
     router.push("/");
   }
+
+  function handleResetWallet() {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.localStorage.removeItem(WALLET_STORAGE_KEY);
+      setResetMessage("Balance and transactions reset. Next open will re-seed defaults.");
+      setTimeout(() => setResetMessage(null), 2500);
+    } catch (err) {
+      console.warn("[info] failed to reset wallet", err);
+      setResetMessage("Something went wrong resetting. Try again.");
+      setTimeout(() => setResetMessage(null), 2500);
+    }
+  }
+
+  const previewAmount =
+    amountMode === "fixed"
+      ? fixedAmount || "0.00"
+      : `${minAmount || "15"}–${maxAmount || "85"}`;
+
+  const previewLine =
+    amountMode === "fixed"
+      ? `You'll appear to receive $${fixedAmount || "0.00"} from ${
+          friendName.trim() || DEFAULT_CONFIG.friendName
+        }.`
+      : `You'll appear to receive a random amount between $${minAmount || "15"} and $${
+          maxAmount || "85"
+        } from ${friendName.trim() || DEFAULT_CONFIG.friendName}.`;
 
   return (
     <main
@@ -65,14 +142,8 @@ export default function InfoPage() {
         fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
       }}
     >
-      {/* Centered phone window so it feels like the main app */}
-      <div
-        style={{
-          maxWidth: 480,
-          margin: "0 auto",
-        }}
-      >
-        {/* Top bar with  Pay title, like main screen */}
+      <div style={{ maxWidth: 480, margin: "0 auto" }}>
+        {/* Top bar */}
         <header
           style={{
             display: "flex",
@@ -87,12 +158,12 @@ export default function InfoPage() {
             style={{
               background: "none",
               border: "none",
-              color: "#000",
-              fontSize: "17px",
+              color: "#007aff",
+              fontSize: 17,
               fontWeight: 500,
             }}
           >
-            Done
+            Wallet
           </button>
 
           <div
@@ -106,21 +177,33 @@ export default function InfoPage() {
           >
             <span
               style={{
-                fontSize: 18,
+                fontSize: 17,
                 fontWeight: 600,
                 color: "#111827",
-                letterSpacing: 0.3,
+                letterSpacing: 0.25,
               }}
             >
-              {"\uF8FF"} Pay
+              Settings
             </span>
           </div>
 
-          {/* spacer to balance Done text */}
-          <div style={{ width: 40 }} />
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            style={{
+              background: "none",
+              border: "none",
+              color: saving ? "#9ca3af" : "#007aff",
+              fontSize: 17,
+              fontWeight: 600,
+              opacity: saving ? 0.7 : 1,
+            }}
+          >
+            Save
+          </button>
         </header>
 
-        {/* Small section title */}
+        {/* Section label */}
         <div
           style={{
             fontSize: 13,
@@ -131,10 +214,10 @@ export default function InfoPage() {
             margin: "0.25rem 0 0.5rem 0.15rem",
           }}
         >
-          Prank Settings
+          Prank Configuration
         </div>
 
-        {/* Prank preview card */}
+        {/* Preview card */}
         <section
           style={{
             borderRadius: 16,
@@ -146,115 +229,314 @@ export default function InfoPage() {
         >
           <div
             style={{
-              fontSize: "13px",
+              fontSize: 13,
               fontWeight: 500,
               textTransform: "uppercase",
               letterSpacing: 0.4,
               color: "#6b7280",
-              marginBottom: "0.35rem",
+              marginBottom: 6,
             }}
           >
-            Prank Preview
+            Preview
           </div>
           <div
             style={{
-              fontSize: "28px",
+              fontSize: 26,
               fontWeight: 600,
-              marginBottom: "0.15rem",
+              marginBottom: 4,
             }}
           >
-            ${amount || "0.00"}
+            {amountMode === "fixed" ? `$${previewAmount}` : `$${previewAmount}`}
           </div>
           <div
             style={{
-              fontSize: "13px",
+              fontSize: 13,
               color: "#6b7280",
             }}
           >
-            You&apos;ll appear to receive{" "}
-            <strong>${amount || "0.00"}</strong> from{" "}
-            <strong>{(friendName && friendName.trim()) || "Apple Pay"}</strong>.
+            {previewLine}
           </div>
         </section>
 
-        {/* Form card – iOS-style list */}
+        {/* Config card */}
         <section
           style={{
             borderRadius: 16,
             backgroundColor: "#fff",
             boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
             overflow: "hidden",
+            marginBottom: "1.0rem",
           }}
         >
-          {/* Amount row (left-aligned, like other fields) */}
+          {/* Amount mode toggle */}
           <div
             style={{
               padding: "0.75rem 0.9rem",
               borderBottom: "1px solid #e5e7eb",
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
             }}
           >
-            <div>
-              <div
-                style={{
-                  fontSize: "15px",
-                  color: "#111827",
-                  marginBottom: 2,
-                }}
-              >
-                Amount
-              </div>
-              <div
-                style={{
-                  fontSize: "12px",
-                  color: "#6b7280",
-                }}
-              >
-                How much should the prank say was sent.
-              </div>
+            <div
+              style={{
+                fontSize: 15,
+                color: "#111827",
+                marginBottom: 6,
+              }}
+            >
+              Amount Mode
             </div>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
+                display: "inline-flex",
+                borderRadius: 999,
+                backgroundColor: "#e5e7eb",
+                padding: 2,
               }}
             >
-              <span
+              <button
+                type="button"
+                onClick={() => setAmountMode("fixed")}
                 style={{
-                  fontSize: 16,
-                  marginRight: 4,
-                  color: "#111827",
+                  padding: "4px 14px",
+                  borderRadius: 999,
+                  border: "none",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  backgroundColor: amountMode === "fixed" ? "#fff" : "transparent",
+                  color: amountMode === "fixed" ? "#111827" : "#4b5563",
+                  boxShadow:
+                    amountMode === "fixed" ? "0 1px 2px rgba(0,0,0,0.15)" : "none",
                 }}
               >
-                $
-              </span>
-              <input
-                type="text"
-                inputMode="decimal"
-                pattern="[0-9]*"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="27.43"
+                Fixed
+              </button>
+              <button
+                type="button"
+                onClick={() => setAmountMode("range")}
                 style={{
+                  padding: "4px 14px",
+                  borderRadius: 999,
                   border: "none",
-                  outline: "none",
-                  fontSize: "16px",
-                  padding: "4px 0",
-                  background: "transparent",
-                  color: "#111827",
-                  flex: 1,
+                  fontSize: 13,
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  backgroundColor: amountMode === "range" ? "#fff" : "transparent",
+                  color: amountMode === "range" ? "#111827" : "#4b5563",
+                  boxShadow:
+                    amountMode === "range" ? "0 1px 2px rgba(0,0,0,0.15)" : "none",
                 }}
-              />
+              >
+                Range
+              </button>
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 12,
+                color: "#6b7280",
+              }}
+            >
+              Choose one exact amount, or a random range for more realism.
             </div>
           </div>
 
-          {/* Friend name (payer) */}
+          {/* Fixed amount row */}
+          {amountMode === "fixed" && (
+            <div
+              style={{
+                padding: "0.75rem 0.9rem",
+                borderTop: "1px solid #e5e7eb",
+                display: "flex",
+                flexDirection: "column",
+                gap: 6,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 15,
+                  color: "#111827",
+                }}
+              >
+                Fixed amount
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 16,
+                    marginRight: 4,
+                    color: "#111827",
+                  }}
+                >
+                  $
+                </span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={fixedAmount}
+                  onChange={(e) => setFixedAmount(e.target.value)}
+                  placeholder="67.00"
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    fontSize: 16,
+                    padding: "4px 0",
+                    background: "transparent",
+                    color: "#111827",
+                    flex: 1,
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#6b7280",
+                }}
+              >
+                This is the exact amount that will show in the payment popup.
+              </div>
+            </div>
+          )}
+
+          {/* Range rows */}
+          {amountMode === "range" && (
+            <div
+              style={{
+                padding: "0.75rem 0.9rem",
+                borderTop: "1px solid #e5e7eb",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 15,
+                  color: "#111827",
+                }}
+              >
+                Random range
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                }}
+              >
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    borderRadius: 8,
+                    backgroundColor: "#f3f4f6",
+                    padding: "4px 8px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 14,
+                      marginRight: 4,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Min
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 16,
+                      marginRight: 2,
+                      color: "#111827",
+                    }}
+                  >
+                    $
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={minAmount}
+                    onChange={(e) => setMinAmount(e.target.value)}
+                    placeholder="15"
+                    style={{
+                      border: "none",
+                      outline: "none",
+                      fontSize: 15,
+                      padding: "4px 0",
+                      background: "transparent",
+                      color: "#111827",
+                      flex: 1,
+                    }}
+                  />
+                </div>
+
+                <div
+                  style={{
+                    flex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    borderRadius: 8,
+                    backgroundColor: "#f3f4f6",
+                    padding: "4px 8px",
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: 14,
+                      marginRight: 4,
+                      color: "#6b7280",
+                    }}
+                  >
+                    Max
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 16,
+                      marginRight: 2,
+                      color: "#111827",
+                    }}
+                  >
+                    $
+                  </span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={maxAmount}
+                    onChange={(e) => setMaxAmount(e.target.value)}
+                    placeholder="85"
+                    style={{
+                      border: "none",
+                      outline: "none",
+                      fontSize: 15,
+                      padding: "4px 0",
+                      background: "transparent",
+                      color: "#111827",
+                      flex: 1,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#6b7280",
+                }}
+              >
+                Each time you tap the card, a new amount in this range will be used.
+              </div>
+            </div>
+          )}
+
+          {/* Friend (sender) */}
           <div
             style={{
               padding: "0.75rem 0.9rem",
-              borderBottom: "1px solid #e5e7eb",
+              borderTop: "1px solid #e5e7eb",
               display: "flex",
               flexDirection: "column",
               gap: 4,
@@ -262,11 +544,11 @@ export default function InfoPage() {
           >
             <div
               style={{
-                fontSize: "15px",
+                fontSize: 15,
                 color: "#111827",
               }}
             >
-              Friend&apos;s name
+              Friend&apos;s name (sender)
             </div>
             <input
               type="text"
@@ -276,19 +558,19 @@ export default function InfoPage() {
               style={{
                 border: "none",
                 outline: "none",
-                fontSize: "16px",
+                fontSize: 16,
                 padding: "4px 0",
                 background: "transparent",
-                color: "#111827", // solid black text
+                color: "#111827",
               }}
             />
             <div
               style={{
-                fontSize: "12px",
+                fontSize: 12,
                 color: "#6b7280",
               }}
             >
-              This is who it looks like the money is coming from.
+              This is who it will look like the money is coming from.
             </div>
           </div>
 
@@ -296,6 +578,7 @@ export default function InfoPage() {
           <div
             style={{
               padding: "0.75rem 0.9rem",
+              borderTop: "1px solid #e5e7eb",
               display: "flex",
               flexDirection: "column",
               gap: 4,
@@ -303,11 +586,11 @@ export default function InfoPage() {
           >
             <div
               style={{
-                fontSize: "15px",
+                fontSize: 15,
                 color: "#111827",
               }}
             >
-              Your name
+              Your name (receiver)
             </div>
             <input
               type="text"
@@ -317,50 +600,112 @@ export default function InfoPage() {
               style={{
                 border: "none",
                 outline: "none",
-                fontSize: "16px",
+                fontSize: 16,
                 padding: "4px 0",
                 background: "transparent",
-                color: "#111827", // solid black text
+                color: "#111827",
               }}
             />
             <div
               style={{
-                fontSize: "12px",
+                fontSize: 12,
                 color: "#6b7280",
               }}
             >
-              This is who it looks like the money was sent to.
+              This is who it will look like the money was sent to.
             </div>
           </div>
         </section>
 
-        {/* Save button */}
-        <div
+        {/* Reset & disclaimer */}
+        <section
           style={{
-            marginTop: "1.25rem",
-            display: "flex",
-            justifyContent: "center",
+            borderRadius: 16,
+            backgroundColor: "#fff",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            overflow: "hidden",
           }}
         >
+          {/* Reset wallet row */}
           <button
-            onClick={handleSave}
+            type="button"
+            onClick={handleResetWallet}
             style={{
-              minWidth: 160,
-              padding: "0.6rem 1.5rem",
-              borderRadius: 999,
+              width: "100%",
+              padding: "0.85rem 0.9rem",
               border: "none",
-              fontSize: "16px",
-              fontWeight: 500,
-              background: "#000",
-              color: "#fff",
-              boxShadow: "0 6px 12px rgba(0,0,0,0.25)",
+              background: "transparent",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
               cursor: "pointer",
             }}
           >
-            Save & Return
+            <span
+              style={{
+                fontSize: 15,
+                color: "#dc2626",
+                fontWeight: 500,
+              }}
+            >
+              Reset All Transactions
+            </span>
+            <span
+              style={{
+                fontSize: 13,
+                color: "#9ca3af",
+              }}
+            >
+              Clear balance & history
+            </span>
           </button>
-        </div>
+
+          {resetMessage && (
+            <div
+              style={{
+                padding: "0 0.9rem 0.75rem",
+                fontSize: 12,
+                color: "#6b7280",
+              }}
+            >
+              {resetMessage}
+            </div>
+          )}
+
+          {/* Divider */}
+          <div
+            style={{
+              height: 1,
+              backgroundColor: "#e5e7eb",
+              margin: "0 0.9rem",
+            }}
+          />
+
+          {/* About / disclaimer */}
+          <div
+            style={{
+              padding: "0.8rem 0.9rem 0.95rem",
+              fontSize: 12,
+              color: "#6b7280",
+              lineHeight: 1.5,
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 600,
+                marginBottom: 4,
+                color: "#4b5563",
+              }}
+            >
+              About this app
+            </div>
+            This is a visual prank tool only. No real money is being sent or
+            received. Use it responsibly, and don&apos;t use it to scam, harass,
+            or mislead people about actual payments.
+          </div>
+        </section>
       </div>
     </main>
   );
 }
+
