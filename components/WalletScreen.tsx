@@ -321,21 +321,20 @@ export function WalletScreen() {
         <div
           style={{
             position: "fixed",
-            bottom: "max(30px, env(safe-area-inset-bottom, 30px))",
+            bottom: "max(14px, env(safe-area-inset-bottom, 14px))",
             left: "50%",
             transform: "translateX(-50%)",
-            backgroundColor: smsToast.success ? C.green : "#ff3b30",
-            color: "#fff",
-            padding: "10px 20px",
-            borderRadius: 12,
-            fontSize: 14,
-            fontWeight: 500,
+            backgroundColor: "rgba(60,60,67,0.5)",
+            color: "rgba(255,255,255,0.85)",
+            padding: "5px 12px",
+            borderRadius: 8,
+            fontSize: 11,
+            fontWeight: 400,
             fontFamily: FONT,
-            boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
             zIndex: 100,
-            maxWidth: "90vw",
+            maxWidth: "80vw",
             textAlign: "center" as const,
-            animation: "fadeInUp 0.3s ease",
+            animation: "fadeInUp 0.25s ease",
           }}
         >
           {smsToast.message}
