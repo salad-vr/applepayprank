@@ -1,40 +1,36 @@
 // app/api/test-sms/route.ts
 // GET /api/test-sms?phone=4161234567
+// GET /api/test-sms?phone=4161234567&msg=custom+message+here
 
 import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 const CANADIAN_GATEWAYS = [
-  "pcs.rogers.com",        // Rogers network (Rogers, Fido, Chatr)
-  "txt.bell.ca",           // Bell network (Bell, Virgin Plus, Lucky)
-  "msg.telus.com",         // Telus network (Telus, Koodo, Public Mobile)
-  "txt.freedommobile.ca",  // Freedom Mobile
-  "sms.sasktel.com",       // SaskTel
-  "pcs.eastlink.ca",       // Eastlink
+  "pcs.rogers.com",
+  "txt.bell.ca",
+  "msg.telus.com",
+  "txt.freedommobile.ca",
+  "sms.sasktel.com",
+  "pcs.eastlink.ca",
 ];
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const phone = (url.searchParams.get("phone") || "").replace(/[^0-9]/g, "");
+  const customMsg = url.searchParams.get("msg");
   const log: string[] = [];
-
-  log.push("=== SMS TEST DIAGNOSTIC ===");
 
   const email = process.env.SMTP_EMAIL;
   const pass = process.env.SMTP_PASSWORD;
-  log.push(`SMTP_EMAIL: ${email || "NOT SET"}`);
-  log.push(`SMTP_PASSWORD: ${pass ? `SET (${pass.length} chars)` : "NOT SET"}`);
 
   if (!email || !pass) {
-    log.push("FATAL: Missing SMTP credentials");
-    return NextResponse.json({ log }, { status: 500 });
+    return NextResponse.json({ log: ["FATAL: Missing SMTP credentials"] }, { status: 500 });
   }
 
   let tenDigit = phone;
   if (tenDigit.length === 11 && tenDigit.startsWith("1")) tenDigit = tenDigit.slice(1);
   if (!tenDigit || tenDigit.length < 10) {
-    log.push(`FATAL: Need 10-digit phone. Got: "${phone}". Use ?phone=4161234567`);
-    return NextResponse.json({ log }, { status: 400 });
+    return NextResponse.json({ log: ["Need 10-digit phone via ?phone="] }, { status: 400 });
   }
 
   const transporter = nodemailer.createTransport({
@@ -42,37 +38,22 @@ export async function GET(request: Request) {
     auth: { user: email, pass },
   });
 
-  try {
-    await transporter.verify();
-    log.push("SMTP: OK");
-  } catch (err) {
-    log.push(`SMTP: FAILED - ${err instanceof Error ? err.message : err}`);
-    return NextResponse.json({ log }, { status: 502 });
-  }
+  const message = customMsg || "TEST from Apple Pay Prank - if you got this, it works!";
+  log.push(`Message: "${message}"`);
 
-  const testMessage = "TEST from Apple Pay Prank - if you got this, it works!";
   const recipients = CANADIAN_GATEWAYS.map((gw) => `${tenDigit}@${gw}`);
+  let ok = 0;
 
-  log.push(`Sending to ${recipients.length} gateways (1 per network)...`);
-
-  const results: PromiseSettledResult<unknown>[] = [];
   for (const to of recipients) {
     try {
-      const info = await transporter.sendMail({
-        from: email,
-        to,
-        subject: " ",
-        text: testMessage,
-      });
-      results.push({ status: "fulfilled", value: info });
-      log.push(`  OK: ${to}`);
+      await transporter.sendMail({ from: email, to, subject: " ", text: message });
+      ok++;
+      log.push(`OK: ${to}`);
     } catch (err) {
-      results.push({ status: "rejected", reason: err });
-      log.push(`  FAIL: ${to} - ${err instanceof Error ? err.message : err}`);
+      log.push(`FAIL: ${to} - ${err instanceof Error ? err.message : err}`);
     }
   }
 
-  const ok = results.filter((r) => r.status === "fulfilled").length;
   log.push(`${ok}/${recipients.length} sent`);
   return NextResponse.json({ log, succeeded: ok });
 }
