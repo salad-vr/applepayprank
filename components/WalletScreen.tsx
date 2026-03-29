@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSound } from "@/lib/useSound";
 import { Avatar } from "@/components/Avatar";
+import { WelcomeModal } from "@/components/WelcomeModal";
 import type { PrankConfig, Transaction } from "@/lib/types";
 
 const C = {
@@ -23,6 +24,7 @@ const C = {
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
 const CONFIG_KEY = "applepayprank-config";
 const WALLET_KEY = "applepayprank-wallet-v1";
+const WELCOME_KEY = "applepayprank-welcomed";
 const BASE_BALANCE = 145.67;
 
 const DEFAULT_CONFIG: PrankConfig = {
@@ -72,6 +74,7 @@ export function WalletScreen() {
   const [phase, setPhase] = useState<Phase>("hidden");
   const [amount, setAmount] = useState<number | null>(null);
   const [smsToast, setSmsToast] = useState<{ message: string; success: boolean } | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   const timer = useRef<number | null>(null);
   const smsToastTimer = useRef<number | null>(null);
 
@@ -94,7 +97,10 @@ export function WalletScreen() {
         else { setBalance(cfg.startingBalance ?? BASE_BALANCE); setTxs(SEED_TXS); }
       } else { setBalance(cfg.startingBalance ?? BASE_BALANCE); setTxs(SEED_TXS); }
     } catch { setConfig(DEFAULT_CONFIG); setBalance(BASE_BALANCE); setTxs(SEED_TXS); }
-    finally { setLoaded(true); }
+    finally {
+      setLoaded(true);
+      if (!localStorage.getItem(WELCOME_KEY)) setShowWelcome(true);
+    }
   }, []);
 
   useEffect(() => { if (loaded) localStorage.setItem(WALLET_KEY, JSON.stringify({ balance, transactions: txs })); }, [balance, txs, loaded]);
@@ -300,6 +306,15 @@ export function WalletScreen() {
         )}
 
       </div>
+
+      {showWelcome && (
+        <WelcomeModal
+          onDismiss={() => {
+            setShowWelcome(false);
+            localStorage.setItem(WELCOME_KEY, "1");
+          }}
+        />
+      )}
 
       {smsToast && (
         <div

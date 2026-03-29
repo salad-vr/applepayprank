@@ -7,6 +7,7 @@ import type { PrankConfig } from "@/lib/types";
 
 const CONFIG_STORAGE_KEY = "applepayprank-config";
 const WALLET_STORAGE_KEY = "applepayprank-wallet-v1";
+const WELCOME_KEY = "applepayprank-welcomed";
 
 const DEFAULT_CONFIG: PrankConfig = {
   pranksterName: "John Doe",
@@ -190,6 +191,7 @@ export default function InfoPage() {
       setCodeUnlocked(false);
 
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
+      window.localStorage.removeItem(WELCOME_KEY);
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
 
       setResetMessage("Everything cleared.");
