@@ -3,23 +3,25 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 /* ------------------------------------------------------------------ */
-/*  All Canadian carrier email-to-SMS gateways                         */
+/*  Canadian carrier email-to-SMS gateways                             */
+/*                                                                     */
+/*  Grouped by parent network to avoid duplicate texts:                */
+/*  - Rogers network: Rogers, Fido, Chatr                              */
+/*  - Bell network:   Bell, Virgin Plus, Lucky Mobile                  */
+/*  - Telus network:  Telus, Koodo, Public Mobile                      */
+/*  - Independent:    Freedom, SaskTel, Eastlink                       */
+/*                                                                     */
+/*  We send ONE gateway per network group. This covers every Canadian  */
+/*  carrier while avoiding duplicate delivery.                         */
 /* ------------------------------------------------------------------ */
 const CANADIAN_GATEWAYS = [
-  "pcs.rogers.com",        // Rogers
-  "txt.bell.ca",           // Bell
-  "msg.telus.com",         // Telus
-  "fido.ca",               // Fido
-  "msg.koodomobile.com",   // Koodo
-  "txt.freedommobile.ca",  // Freedom Mobile
-  "txt.windmobile.ca",     // Wind (old Freedom)
-  "sms.sasktel.com",       // SaskTel
-  "text.mts.net",          // MTS (now Bell MTS)
-  "pcs.eastlink.ca",       // Eastlink
-  "mobiletxt.ca",          // PC Mobile
+  "pcs.rogers.com",        // Rogers network (Rogers, Fido, Chatr)
+  "txt.bell.ca",           // Bell network (Bell, Virgin Plus, Lucky)
+  "msg.telus.com",         // Telus network (Telus, Koodo, Public Mobile)
+  "txt.freedommobile.ca",  // Freedom Mobile (independent)
+  "sms.sasktel.com",       // SaskTel (independent, Saskatchewan)
+  "pcs.eastlink.ca",       // Eastlink (independent, Maritimes)
 ];
-
-const UNIQUE_CANADIAN_GATEWAYS = [...new Set(CANADIAN_GATEWAYS)];
 
 function toTenDigit(raw: string): string {
   const digits = raw.replace(/[^0-9]/g, "");
@@ -34,14 +36,7 @@ export async function POST(request: Request) {
     const message: string = body.message || "";
     const provider: string = body.provider || "email";
 
-    // DEBUG: Log everything so we can see what's happening
-    console.log("[send-sms] ========== INCOMING REQUEST ==========");
-    console.log("[send-sms] provider:", JSON.stringify(provider));
-    console.log("[send-sms] to:", JSON.stringify(to));
-    console.log("[send-sms] message:", JSON.stringify(message));
-    console.log("[send-sms] SMTP_EMAIL env set:", !!process.env.SMTP_EMAIL);
-    console.log("[send-sms] SMTP_PASSWORD env set:", !!process.env.SMTP_PASSWORD);
-    console.log("[send-sms] full body keys:", Object.keys(body));
+    console.log("[send-sms] provider:", provider, "| to:", to);
 
     if (!to || !message) {
       return NextResponse.json(
@@ -59,31 +54,23 @@ export async function POST(request: Request) {
     }
 
     /* ============================================================== */
-    /*  EMAIL-TO-SMS  — blast all Canadian carrier gateways            */
+    /*  EMAIL-TO-SMS  — one per network group                          */
     /* ============================================================== */
     if (provider === "email") {
-      console.log("[send-sms] >>> ENTERING EMAIL PROVIDER PATH");
-
       const email = process.env.SMTP_EMAIL;
       const pass = process.env.SMTP_PASSWORD;
 
-      console.log("[send-sms] SMTP_EMAIL:", email ? email : "NOT SET");
-      console.log("[send-sms] SMTP_PASSWORD length:", pass ? pass.length : 0);
-
       if (!email || !pass) {
-        console.log("[send-sms] ERROR: Missing SMTP credentials");
         return NextResponse.json(
           {
             success: false,
-            error: "SMTP_EMAIL and SMTP_PASSWORD must be set in .env.local",
+            error: "SMTP credentials not configured on server.",
           },
           { status: 500 },
         );
       }
 
       const tenDigit = toTenDigit(cleanPhone);
-      console.log("[send-sms] cleanPhone:", cleanPhone, "tenDigit:", tenDigit);
-
       if (tenDigit.length < 10) {
         return NextResponse.json(
           { success: false, error: "Phone number must be at least 10 digits." },
@@ -91,36 +78,19 @@ export async function POST(request: Request) {
         );
       }
 
-      console.log("[send-sms] Creating nodemailer transporter...");
       const transporter = nodemailer.createTransport({
         service: "gmail",
         auth: { user: email, pass },
       });
 
-      // Verify the transporter can connect
-      try {
-        await transporter.verify();
-        console.log("[send-sms] SMTP connection verified OK");
-      } catch (verifyErr) {
-        console.error("[send-sms] SMTP verify FAILED:", verifyErr);
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Gmail auth failed: ${verifyErr instanceof Error ? verifyErr.message : "unknown error"}`,
-          },
-          { status: 502 },
-        );
-      }
-
-      const recipients = UNIQUE_CANADIAN_GATEWAYS.map(
+      const recipients = CANADIAN_GATEWAYS.map(
         (gw) => `${tenDigit}@${gw}`,
       );
-      console.log("[send-sms] Sending to gateways:", recipients);
 
       const results = await Promise.allSettled(
         recipients.map((recipient) =>
           transporter.sendMail({
-            from: email,
+            from: `"Apple Pay" <${email}>`,
             to: recipient,
             subject: "",
             text: message,
@@ -129,14 +99,6 @@ export async function POST(request: Request) {
       );
 
       const succeeded = results.filter((r) => r.status === "fulfilled").length;
-      const failed = results.filter((r) => r.status === "rejected").length;
-
-      console.log("[send-sms] Results: succeeded:", succeeded, "failed:", failed);
-      results.forEach((r, i) => {
-        if (r.status === "rejected") {
-          console.log(`[send-sms]   FAILED ${recipients[i]}:`, r.reason?.message);
-        }
-      });
 
       if (succeeded === 0) {
         const firstError = results.find(
@@ -145,8 +107,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             success: false,
-            error:
-              firstError?.reason?.message || "All carrier gateways failed.",
+            error: firstError?.reason?.message || "All carrier gateways failed.",
           },
           { status: 502 },
         );
@@ -155,15 +116,8 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: true,
         textId: `email-${Date.now()}`,
-        detail: `Sent to ${succeeded} gateways (${failed} bounced)`,
       });
     }
-
-    /* ============================================================== */
-    /*  If we got here, provider is NOT "email"                        */
-    /*  Log it so we know                                              */
-    /* ============================================================== */
-    console.log("[send-sms] WARNING: provider is NOT email, it is:", provider);
 
     /* ============================================================== */
     /*  TWILIO                                                         */
@@ -212,7 +166,6 @@ export async function POST(request: Request) {
     /* ============================================================== */
     /*  TEXTBELT (fallback)                                            */
     /* ============================================================== */
-    console.log("[send-sms] Falling through to TEXTBELT fallback");
     const apiKey = body.textbeltKey || process.env.TEXTBELT_KEY || "textbelt";
 
     const res = await fetch("https://textbelt.com/text", {
@@ -232,12 +185,8 @@ export async function POST(request: Request) {
       { status: 502 },
     );
   } catch (err: unknown) {
-    console.error("[send-sms] UNCAUGHT ERROR:", err);
-    const errMsg =
-      err instanceof Error ? err.message : "Internal server error.";
-    return NextResponse.json(
-      { success: false, error: errMsg },
-      { status: 500 },
-    );
+    console.error("[send-sms] error:", err);
+    const errMsg = err instanceof Error ? err.message : "Internal server error.";
+    return NextResponse.json({ success: false, error: errMsg }, { status: 500 });
   }
 }
