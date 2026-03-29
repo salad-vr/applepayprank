@@ -438,6 +438,7 @@ export function WalletScreen() {
               paddingLeft: 4,
               color: C.label,
               letterSpacing: "-0.02em",
+              marginTop: 4,
             }}
           >
             Latest Transactions
@@ -484,8 +485,8 @@ export function WalletScreen() {
                       width: 38,
                       height: 38,
                       borderRadius: 19,
-                      backgroundColor: C.gray5,
-                      color: C.gray,
+                      backgroundColor: "rgba(255,255,255,0.12)",
+                      color: "rgba(255,255,255,0.5)",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -508,7 +509,7 @@ export function WalletScreen() {
                       fontSize: 16,
                       fontWeight: 400,
                       marginBottom: 1,
-                      color: C.label,
+                      color: "#ffffff",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -516,7 +517,7 @@ export function WalletScreen() {
                   >
                     {tx.title}
                   </div>
-                  <div style={{ fontSize: 14, color: C.secondaryLabel }}>
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)" }}>
                     {tx.subtitle}
                   </div>
                 </div>
@@ -525,7 +526,7 @@ export function WalletScreen() {
                   style={{
                     fontSize: 16,
                     fontWeight: 400,
-                    color: tx.direction === "in" ? C.green : C.label,
+                    color: tx.direction === "in" ? C.green : "rgba(255,255,255,0.85)",
                     marginLeft: 6,
                     flexShrink: 0,
                   }}
@@ -536,7 +537,7 @@ export function WalletScreen() {
                 <div
                   style={{
                     marginLeft: 6,
-                    color: C.gray3,
+                    color: "rgba(255,255,255,0.3)",
                     fontSize: 14,
                     fontWeight: 500,
                     flexShrink: 0,
@@ -574,10 +575,11 @@ export function WalletScreen() {
               style={{
                 width: "min(340px, calc(100% - 48px))",
                 borderRadius: 22,
-                backgroundColor: "rgba(255,255,255,0.88)",
-                backdropFilter: "saturate(180%) blur(20px)",
-                WebkitBackdropFilter: "saturate(180%) blur(20px)",
-                boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
+                backgroundColor: "rgba(30,30,30,0.75)",
+                backdropFilter: "saturate(180%) blur(40px)",
+                WebkitBackdropFilter: "saturate(180%) blur(40px)",
+                boxShadow: "0 20px 50px rgba(0,0,0,0.5), inset 0 0.5px 0 rgba(255,255,255,0.12)",
+                border: "0.5px solid rgba(255,255,255,0.15)",
                 padding: "28px 24px 28px",
                 textAlign: "center",
               }}
@@ -590,7 +592,7 @@ export function WalletScreen() {
                   justifyContent: "center",
                   gap: 8,
                   marginBottom: 20,
-                  color: C.label,
+                  color: "#ffffff",
                 }}
               >
                 <span style={{ fontSize: 28, lineHeight: 1 }}>
@@ -610,7 +612,7 @@ export function WalletScreen() {
               {overlayPhase === "pending" && (
                 <>
                   <div
-                    className="ios-spinner"
+                    className="ios-spinner ios-spinner-light"
                     style={{ margin: "0 auto 20px" }}
                   >
                     {spinnerBlades}
@@ -620,12 +622,12 @@ export function WalletScreen() {
                       fontSize: 18,
                       fontWeight: 600,
                       marginBottom: 4,
-                      color: C.label,
+                      color: "#ffffff",
                     }}
                   >
                     Verifying...
                   </div>
-                  <div style={{ fontSize: 14, color: C.secondaryLabel }}>
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)" }}>
                     Tap to confirm
                   </div>
                 </>
@@ -633,19 +635,6 @@ export function WalletScreen() {
 
               {overlayPhase === "success" && (
                 <>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      marginBottom: 14,
-                    }}
-                  >
-                    <Avatar
-                      name={config.friendName || "Friend"}
-                      size={52}
-                    />
-                  </div>
-
                   <div
                     className="applepay-check-circle"
                     style={{ margin: "0 auto 14px" }}
@@ -676,7 +665,7 @@ export function WalletScreen() {
                       fontSize: 34,
                       fontWeight: 700,
                       marginBottom: 4,
-                      color: C.label,
+                      color: "#ffffff",
                       letterSpacing: "-0.02em",
                     }}
                   >
@@ -685,7 +674,7 @@ export function WalletScreen() {
                       ? pendingAmount.toFixed(2)
                       : "0.00"}
                   </div>
-                  <div style={{ fontSize: 15, color: C.secondaryLabel }}>
+                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.55)" }}>
                     from {config.friendName || "Friend"}
                   </div>
                 </>
