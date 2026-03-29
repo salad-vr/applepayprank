@@ -18,11 +18,11 @@ const DEFAULT_CONFIG: PrankConfig = {
   startingBalance: 145.67,
   victimPhone: "",
   sendSms: false,
-  smsTemplate: "You sent {amount} to {friendName} via Apple Pay.",
+  smsTemplate: "INTERACT e-Transfer: {amount} (CAD) has been deposited to {friendName} from your account.\n",
 };
 
 const DEFAULT_SMS_TEMPLATE =
-  "You sent {amount} to {friendName} via Apple Pay.";
+  "INTERACT e-Transfer: {amount} (CAD) has been deposited to {friendName} from your account.\n";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';

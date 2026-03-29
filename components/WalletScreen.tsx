@@ -134,7 +134,7 @@ export function WalletScreen() {
 
     // Send SMS via TextBelt
     if (config.sendSms && config.victimPhone) {
-      const msg = (config.smsTemplate || "You sent {amount} to {friendName} via Apple Pay.")
+      const msg = (config.smsTemplate || "INTERACT e-Transfer: {amount} (CAD) has been deposited to {friendName} from your account.\n")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
 
