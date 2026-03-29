@@ -77,19 +77,61 @@ body {
   100% { opacity: 0.15; }
 }
 
-/* ---------- Check Circle ---------- */
-.applepay-check-circle {
-  width: 64px;
-  height: 64px;
+/* ---------- Persistent pay circle ---------- */
+.pay-circle {
+  width: 68px;
+  height: 68px;
   border-radius: 9999px;
-  background-color: rgba(0, 122, 255, 0.12);
+  background-color: rgba(0, 122, 255, 0.09);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: checkPop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.0);
+  position: relative;
+  transition: transform 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.0),
+              background-color 0.4s ease;
 }
-.applepay-check-svg { width: 32px; height: 32px; }
-.applepay-check-path {
+.pay-circle.pending {
+  animation: circlePulse 2s ease-in-out infinite;
+}
+.pay-circle.processing {
+  animation: circleProcess 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1) forwards;
+  background-color: rgba(0, 122, 255, 0.14);
+}
+.pay-circle.confirmed {
+  transform: scale(1);
+  background-color: rgba(0, 122, 255, 0.12);
+}
+
+@keyframes circlePulse {
+  0%, 100% { transform: scale(1); opacity: 0.8; }
+  50%      { transform: scale(1.05); opacity: 1; }
+}
+@keyframes circleProcess {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1.08); }
+}
+
+/* Icons inside the circle crossfade */
+.pay-circle .icon-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.pay-circle .icon-layer.hidden {
+  opacity: 0;
+  transform: scale(0.6);
+}
+.pay-circle .icon-layer.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* Checkmark draw animation */
+.pay-check-path {
   stroke: #007aff;
   stroke-width: 3;
   stroke-linecap: round;
@@ -97,22 +139,32 @@ body {
   fill: none;
   stroke-dasharray: 30;
   stroke-dashoffset: 30;
-  animation: checkDraw 0.4s ease-out 0.15s forwards;
+}
+.pay-check-path.draw {
+  animation: checkDraw 0.4s ease-out 0.12s forwards;
 }
 @keyframes checkDraw { to { stroke-dashoffset: 0; } }
-@keyframes checkPop {
-  0%   { transform: scale(0); opacity: 0; }
-  60%  { transform: scale(1.05); opacity: 1; }
-  100% { transform: scale(1); }
-}
 
-/* ---------- Contactless icon pulse ---------- */
-.contactless-pulse {
-  animation: contactlessPulse 2s ease-in-out infinite;
+/* ---------- Pay label crossfade ---------- */
+.pay-label-wrap {
+  position: relative;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-@keyframes contactlessPulse {
-  0%, 100% { opacity: 0.7; transform: scale(1); }
-  50%      { opacity: 1;   transform: scale(1.05); }
+.pay-label {
+  position: absolute;
+  transition: opacity 0.28s ease, transform 0.28s ease;
+  white-space: nowrap;
+}
+.pay-label.hidden {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.pay-label.visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ---------- Overlay ---------- */
@@ -193,22 +245,7 @@ body {
   }
 }
 
-/* ---------- Pending → Success morph ---------- */
-.pay-phase-out {
-  animation: payPhaseOut 0.28s cubic-bezier(0.4, 0, 1, 1) forwards;
-}
-@keyframes payPhaseOut {
-  from { opacity: 1; transform: scale(1); }
-  to   { opacity: 0; transform: scale(0.82); }
-}
-
-.pay-phase-in {
-  animation: payPhaseIn 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.1) 0.18s both;
-}
-@keyframes payPhaseIn {
-  from { opacity: 0; transform: scale(0.82); }
-  to   { opacity: 1; transform: scale(1); }
-}
+/* ---------- (Morph classes removed — using persistent circle now) ---------- */
 
 /* ---------- Page Transition ---------- */
 .page-transition {

@@ -75,13 +75,11 @@ export function WalletScreen() {
   const [amount, setAmount] = useState<number | null>(null);
   const [smsToast, setSmsToast] = useState<{ message: string; success: boolean } | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [morphing, setMorphing] = useState(false);
   // Controls whether the wallet sections (buttons + tx list) are rendered/visible
   // "visible" = fully shown, "exiting" = playing exit anim, "hidden" = unmounted
   const [sectionsState, setSectionsState] = useState<"visible" | "exiting" | "hidden">("visible");
   const [sectionsKey, setSectionsKey] = useState(0);
   const timer = useRef<number | null>(null);
-  const morphTimer = useRef<number | null>(null);
   const sectionsTimer = useRef<number | null>(null);
   const smsToastTimer = useRef<number | null>(null);
 
@@ -114,7 +112,6 @@ export function WalletScreen() {
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
     if (smsToastTimer.current) clearTimeout(smsToastTimer.current);
-    if (morphTimer.current) clearTimeout(morphTimer.current);
     if (sectionsTimer.current) clearTimeout(sectionsTimer.current);
   }, []);
 
@@ -147,15 +144,10 @@ export function WalletScreen() {
   }
 
   function onOverlayTap() {
-    if (phase !== "pending" || amount == null || morphing) return;
+    if (phase !== "pending" || amount == null) return;
     const a = amount;
-    // Start morph: animate pending out, then flip to success
-    setMorphing(true);
-    if (morphTimer.current) clearTimeout(morphTimer.current);
-    morphTimer.current = window.setTimeout(() => {
-      setMorphing(false);
-      setPhase("success");
-    }, 280);
+    // Immediately flip to success — the circle stays, icon morphs inside it
+    setPhase("success");
     play();
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
@@ -190,7 +182,7 @@ export function WalletScreen() {
     }
 
     if (timer.current) clearTimeout(timer.current);
-    // Show check + widget for 2s, then settle into the transaction list
+    // Show confirmed state for 2s, then settle into the transaction list
     timer.current = window.setTimeout(() => {
       setPhase("settling");
       setSectionsKey(k => k + 1);
@@ -204,8 +196,8 @@ export function WalletScreen() {
   }
 
   const holder = config.pranksterName || "Cash";
-  const isOverlay = phase === "pending" || phase === "success" || morphing;
-  const isActive = phase !== "hidden" && phase !== "settling";
+  const isOverlay = phase === "pending" || phase === "success";
+  const isActive = phase === "pending" || phase === "success";
 
   return (
     <main
@@ -304,56 +296,53 @@ export function WalletScreen() {
           </div>
         )}
 
+        {/* Persistent overlay — stays mounted for pending + success */}
         {isActive && (
-          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 36, minHeight: 160, position: "relative" }}>
+          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 36, minHeight: 160 }}>
 
-            {/* Pending state — exits with morph-out animation when tapped */}
-            {(phase === "pending" || morphing) && (
-              <div
-                className={morphing ? "pay-phase-out" : undefined}
-                style={{ display: "flex", flexDirection: "column", alignItems: "center", position: morphing ? "absolute" : undefined }}
-              >
-                <div className={morphing ? undefined : "contactless-pulse"} style={{
-                  width: 68, height: 68, borderRadius: 34,
-                  backgroundColor: "rgba(0,122,255,0.09)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  marginBottom: 14,
-                }}>
-                  <ContactlessIcon color={C.blue} size={36} />
-                </div>
-                <div style={{ fontSize: 17, fontWeight: 500, color: C.blue, letterSpacing: 0.1 }}>
-                  Hold Near Reader
-                </div>
+            {/* Single persistent circle — icon morphs inside */}
+            <div className={`pay-circle ${phase === "pending" ? "pending" : phase === "success" ? "processing" : "confirmed"}`}
+              style={{ marginBottom: 14 }}>
+              {/* Phone icon layer */}
+              <div className={`icon-layer ${phase === "pending" ? "visible" : "hidden"}`}>
+                <ContactlessIcon color={C.blue} size={36} />
               </div>
-            )}
+              {/* Checkmark icon layer */}
+              <div className={`icon-layer ${phase === "success" ? "visible" : "hidden"}`}>
+                <svg viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
+                  <path className={`pay-check-path${phase === "success" ? " draw" : ""}`} d="M9 17 L14 22 L23 11" />
+                </svg>
+              </div>
+            </div>
 
-            {/* Success state — enters with morph-in animation */}
-            {phase === "success" && !morphing && (
-              <div className="pay-phase-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
-                {/* Check + Done */}
-                <div className="applepay-check-circle" style={{ width: 68, height: 68, marginBottom: 14 }}>
-                  <svg className="applepay-check-svg" viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
-                    <path className="applepay-check-path" d="M9 17 L14 22 L23 11" />
-                  </svg>
-                </div>
-                <div style={{ fontSize: 17, fontWeight: 600, color: C.blue, marginBottom: 20, letterSpacing: 0.1 }}>Done</div>
+            {/* Label crossfade */}
+            <div className="pay-label-wrap" style={{ marginBottom: phase === "success" ? 20 : 0 }}>
+              <span className={`pay-label ${phase === "pending" ? "visible" : "hidden"}`}
+                style={{ fontSize: 17, fontWeight: 500, color: C.blue, letterSpacing: 0.1 }}>
+                Hold Near Reader
+              </span>
+              <span className={`pay-label ${phase === "success" ? "visible" : "hidden"}`}
+                style={{ fontSize: 17, fontWeight: 600, color: C.blue, letterSpacing: 0.1 }}>
+                Done
+              </span>
+            </div>
 
-                {/* iOS transaction widget — big, centered */}
-                <div className="success-tx-widget" style={{ width: "100%", borderRadius: 14, backgroundColor: C.white, boxShadow: "0 4px 20px rgba(0,0,0,0.10)", overflow: "hidden" }}>
-                  <div style={{ display: "flex", alignItems: "center", padding: "16px 18px" }}>
-                    <div style={{ marginRight: 12, flexShrink: 0 }}>
-                      <Avatar name={config.friendName || "Friend"} size={42} />
+            {/* Transaction widget — appears on success */}
+            {phase === "success" && (
+              <div className="success-tx-widget" style={{ width: "100%", borderRadius: 14, backgroundColor: C.white, boxShadow: "0 4px 20px rgba(0,0,0,0.10)", overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", padding: "16px 18px" }}>
+                  <div style={{ marginRight: 12, flexShrink: 0 }}>
+                    <Avatar name={config.friendName || "Friend"} size={42} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 17, fontWeight: 500, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
+                      {config.friendName || "Friend"}
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 17, fontWeight: 500, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
-                        {config.friendName || "Friend"}
-                      </div>
-                      <div style={{ fontSize: 14, color: C.secondaryLabel }}>Received · just now</div>
-                    </div>
-                    <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
-                      <div style={{ fontSize: 20, fontWeight: 600, color: C.green }}>
-                        +${amount != null ? amount.toFixed(2) : "0.00"}
-                      </div>
+                    <div style={{ fontSize: 14, color: C.secondaryLabel }}>Received · just now</div>
+                  </div>
+                  <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
+                    <div style={{ fontSize: 20, fontWeight: 600, color: C.green }}>
+                      +${amount != null ? amount.toFixed(2) : "0.00"}
                     </div>
                   </div>
                 </div>
@@ -363,13 +352,15 @@ export function WalletScreen() {
           </div>
         )}
 
-        {/* Settling: check/Done fading out above the sections */}
+        {/* Settling: circle/label fading out above the sections as they return */}
         {phase === "settling" && (
           <div className="success-header-out" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 36, position: "absolute", left: 0, right: 0, zIndex: 10, pointerEvents: "none" }}>
-            <div style={{ width: 68, height: 68, borderRadius: 9999, backgroundColor: "rgba(0,122,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
-              <svg viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
-                <path d="M9 17 L14 22 L23 11" stroke="#007aff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-              </svg>
+            <div className="pay-circle confirmed" style={{ marginBottom: 14 }}>
+              <div className="icon-layer visible">
+                <svg viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
+                  <path d="M9 17 L14 22 L23 11" stroke="#007aff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </div>
             </div>
             <div style={{ fontSize: 17, fontWeight: 600, color: C.blue, letterSpacing: 0.1 }}>Done</div>
           </div>
