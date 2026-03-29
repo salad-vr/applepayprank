@@ -55,23 +55,24 @@ export async function GET(request: Request) {
 
   log.push(`Sending to ${recipients.length} gateways (1 per network)...`);
 
-  const results = await Promise.allSettled(
-    recipients.map((to) =>
-      transporter.sendMail({
-        from: `"Apple Pay" <${email}>`,
+  const results: PromiseSettledResult<unknown>[] = [];
+  for (const to of recipients) {
+    try {
+      const info = await transporter.sendMail({
+        from: email,
         to,
-        subject: "",
+        subject: " ",
         text: testMessage,
-      }),
-    ),
-  );
+      });
+      results.push({ status: "fulfilled", value: info });
+      log.push(`  OK: ${to}`);
+    } catch (err) {
+      results.push({ status: "rejected", reason: err });
+      log.push(`  FAIL: ${to} - ${err instanceof Error ? err.message : err}`);
+    }
+  }
 
-  let ok = 0;
-  results.forEach((r, i) => {
-    if (r.status === "fulfilled") { ok++; log.push(`  OK: ${recipients[i]}`); }
-    else { log.push(`  FAIL: ${recipients[i]} - ${r.reason?.message}`); }
-  });
-
+  const ok = results.filter((r) => r.status === "fulfilled").length;
   log.push(`${ok}/${recipients.length} sent`);
   return NextResponse.json({ log, succeeded: ok });
 }

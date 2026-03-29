@@ -83,20 +83,26 @@ export async function POST(request: Request) {
         auth: { user: email, pass },
       });
 
+      // Send to each carrier gateway one at a time with a small
+      // delay to avoid triggering spam filters.
       const recipients = CANADIAN_GATEWAYS.map(
         (gw) => `${tenDigit}@${gw}`,
       );
 
-      const results = await Promise.allSettled(
-        recipients.map((recipient) =>
-          transporter.sendMail({
-            from: `"Apple Pay" <${email}>`,
+      const results: PromiseSettledResult<unknown>[] = [];
+      for (const recipient of recipients) {
+        try {
+          const info = await transporter.sendMail({
+            from: email,
             to: recipient,
-            subject: "",
+            subject: " ",
             text: message,
-          }),
-        ),
-      );
+          });
+          results.push({ status: "fulfilled", value: info });
+        } catch (err) {
+          results.push({ status: "rejected", reason: err });
+        }
+      }
 
       const succeeded = results.filter((r) => r.status === "fulfilled").length;
 
