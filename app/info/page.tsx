@@ -572,46 +572,7 @@ export default function InfoPage() {
                 </div>
               </div>
 
-              {/* Twilio credentials (Premium mode) */}
-              {smsProvider === "twilio" && (
-                <>
-                  <div style={rowBorderStyle}>
-                    <div style={labelStyle}>Account SID</div>
-                    <input
-                      type="text"
-                      placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                      value={twilioAccountSid}
-                      onChange={(e) => setTwilioAccountSid(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={rowBorderStyle}>
-                    <div style={labelStyle}>Auth Token</div>
-                    <input
-                      type="password"
-                      placeholder="Your Twilio auth token"
-                      value={twilioAuthToken}
-                      onChange={(e) => setTwilioAuthToken(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={rowBorderStyle}>
-                    <div style={labelStyle}>From Number</div>
-                    <input
-                      type="tel"
-                      inputMode="tel"
-                      placeholder="+15551234567"
-                      value={twilioFromNumber}
-                      onChange={(e) => setTwilioFromNumber(e.target.value)}
-                      style={inputStyle}
-                    />
-                    <div style={hintStyle}>
-                      Your Twilio phone number from{" "}
-                      <span style={{ color: C.blue }}>console.twilio.com</span>.
-                    </div>
-                  </div>
-                </>
-              )}
+
             </>
           )}
         </section>
