@@ -25,40 +25,54 @@ export async function POST(request: Request) {
       );
     }
 
-    const cleanPhone = to.replace(/[^+0-9]/g, "");
-    if (cleanPhone.length < 10) {
+    // Clean phone: strip non-digits, ensure leading 1 for North America
+    let cleanPhone = to.replace(/[^0-9]/g, "");
+    if (cleanPhone.length === 10) cleanPhone = "1" + cleanPhone;
+    if (cleanPhone.length < 11) {
       return NextResponse.json(
         { success: false, error: "Phone number looks invalid." },
         { status: 400 },
       );
     }
 
-    const apiKey = process.env.TEXTBELT_KEY;
-    if (!apiKey) {
+    const apiKey = process.env.VONAGE_API_KEY;
+    const apiSecret = process.env.VONAGE_API_SECRET;
+    const fromNumber = process.env.VONAGE_FROM_NUMBER;
+
+    if (!apiKey || !apiSecret || !fromNumber) {
       return NextResponse.json(
         { success: false, error: "SMS not configured on server." },
         { status: 500 },
       );
     }
 
-    const res = await fetch("https://textbelt.com/text", {
+    const res = await fetch("https://rest.nexmo.com/sms/json", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: cleanPhone, message, key: apiKey }),
+      body: JSON.stringify({
+        api_key: apiKey,
+        api_secret: apiSecret,
+        to: cleanPhone,
+        from: fromNumber,
+        text: message,
+      }),
     });
 
     const data = await res.json();
+    const msg = data.messages?.[0];
 
-    if (data.success) {
+    if (msg?.status === "0") {
       return NextResponse.json({
         success: true,
-        textId: data.textId,
-        quotaRemaining: data.quotaRemaining,
+        messageId: msg["message-id"],
       });
     }
 
     return NextResponse.json(
-      { success: false, error: data.error || "Failed to send text." },
+      {
+        success: false,
+        error: msg?.["error-text"] || "Failed to send text.",
+      },
       { status: 502 },
     );
   } catch (err: unknown) {

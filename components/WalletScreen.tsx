@@ -138,9 +138,9 @@ export function WalletScreen() {
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
 
-    // Send SMS via TextBelt
+    // Send SMS via Vonage
     if (config.sendSms && config.victimPhone) {
-      const msg = (config.smsTemplate || "{amount} (CAD) has been deposited to {friendName} from your account.\n")
+      const msg = (config.smsTemplate || "You sent {amount} to {friendName}.\n")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
 
@@ -209,7 +209,7 @@ export function WalletScreen() {
             boxShadow: "0 12px 32px rgba(0,0,0,0.4)",
             overflow: "hidden",
             cursor: isActive ? "default" : "pointer",
-            height: 220,
+            height: 232,
           }}
         >
           <div style={{ position: "absolute", inset: 0, opacity: 0.18, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)", backgroundSize: "8px 8px", pointerEvents: "none" }} />
