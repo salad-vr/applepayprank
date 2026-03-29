@@ -44,18 +44,12 @@ function isSystemTx(t: string) {
   return t === "Debit Card" || t === "Apple Store" || t === "Starbucks" || /^[+0-9()\-\s]+$/.test(t);
 }
 
-/* Minimal contactless icon: small phone rect with top dash, 3 wave arcs */
+/* Minimal iPhone icon — just the phone outline with a top notch dash */
 function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
-      {/* Phone body */}
-      <rect x="10" y="8" width="14" height="22" rx="2.5" stroke={color} strokeWidth="1.6" />
-      {/* Top dash (notch) */}
-      <line x1="15" y1="11.5" x2="19" y2="11.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
-      {/* 3 NFC arcs from top-right */}
-      <path d="M26 18 A5 5 0 0 0 26 8" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
-      <path d="M30 20 A9 9 0 0 0 30 6" stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity="0.55" />
-      <path d="M34 22 A13 13 0 0 0 34 4" stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity="0.25" />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <rect x="6" y="2" width="20" height="28" rx="4" stroke={color} strokeWidth="1.8" />
+      <line x1="13" y1="5.5" x2="19" y2="5.5" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
