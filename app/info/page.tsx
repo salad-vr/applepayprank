@@ -19,14 +19,6 @@ const DEFAULT_CONFIG: PrankConfig = {
   victimPhone: "",
   sendSms: false,
   smsTemplate: "You sent {amount} to {friendName} via Apple Pay.",
-  smsProvider: "email",
-  victimCarrier: "",
-  smtpEmail: "",
-  smtpPassword: "",
-  textbeltKey: "",
-  twilioAccountSid: "",
-  twilioAuthToken: "",
-  twilioFromNumber: "",
 };
 
 const DEFAULT_SMS_TEMPLATE =
@@ -35,7 +27,6 @@ const DEFAULT_SMS_TEMPLATE =
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
 
-// Hardcoded iOS colors for reliable inline styles
 const C = {
   label: "#000000",
   secondaryLabel: "rgba(60,60,67,0.6)",
@@ -107,15 +98,11 @@ export default function InfoPage() {
   const [victimPhone, setVictimPhone] = useState("");
   const [sendSms, setSendSms] = useState(false);
   const [smsTemplate, setSmsTemplate] = useState(DEFAULT_SMS_TEMPLATE);
-  const [smsProvider, setSmsProvider] = useState<"email" | "textbelt" | "twilio">("email");
-  const [twilioAccountSid, setTwilioAccountSid] = useState("");
-  const [twilioAuthToken, setTwilioAuthToken] = useState("");
-  const [twilioFromNumber, setTwilioFromNumber] = useState("");
-  // Legacy fields kept for reset/save compatibility
-  const [victimCarrier, setVictimCarrier] = useState("");
-  const [smtpEmail, setSmtpEmail] = useState("");
-  const [smtpPassword, setSmtpPassword] = useState("");
-  const [textbeltKey, setTextbeltKey] = useState("");
+
+  // Access code — session only, never saved
+  const [accessCode, setAccessCode] = useState("");
+  const [codeUnlocked, setCodeUnlocked] = useState(false);
+  const [codeError, setCodeError] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -137,21 +124,23 @@ export default function InfoPage() {
       if (typeof parsed.victimPhone === "string") setVictimPhone(parsed.victimPhone);
       if (typeof parsed.sendSms === "boolean") setSendSms(parsed.sendSms);
       if (typeof parsed.smsTemplate === "string" && parsed.smsTemplate.trim()) setSmsTemplate(parsed.smsTemplate);
-      if (parsed.smsProvider === "textbelt" || parsed.smsProvider === "twilio" || parsed.smsProvider === "email") setSmsProvider(parsed.smsProvider);
-      if (typeof parsed.victimCarrier === "string") setVictimCarrier(parsed.victimCarrier);
-      if (typeof parsed.smtpEmail === "string") setSmtpEmail(parsed.smtpEmail);
-      if (typeof parsed.smtpPassword === "string") setSmtpPassword(parsed.smtpPassword);
-      if (typeof parsed.textbeltKey === "string") setTextbeltKey(parsed.textbeltKey);
-      if (typeof parsed.twilioAccountSid === "string") setTwilioAccountSid(parsed.twilioAccountSid);
-      if (typeof parsed.twilioAuthToken === "string") setTwilioAuthToken(parsed.twilioAuthToken);
-      if (typeof parsed.twilioFromNumber === "string") setTwilioFromNumber(parsed.twilioFromNumber);
     } catch (err) {
       console.warn("[info] failed to load config", err);
     }
   }, []);
 
+  function handleCodeSubmit() {
+    if (accessCode.toUpperCase() === "SALAAR") {
+      setCodeUnlocked(true);
+      setCodeError(false);
+    } else {
+      setCodeError(true);
+      setCodeUnlocked(false);
+      setTimeout(() => setCodeError(false), 1500);
+    }
+  }
+
   function handleSave() {
-    // Confirm SMS details before saving
     if (sendSms && victimPhone.trim()) {
       const previewMsg = (smsTemplate || DEFAULT_SMS_TEMPLATE)
         .replace("{amount}", amountMode === "fixed" ? `$${fixedAmount || "0.00"}` : "$XX.XX")
@@ -174,14 +163,6 @@ export default function InfoPage() {
       victimPhone: victimPhone.trim(),
       sendSms,
       smsTemplate: smsTemplate.trim() || DEFAULT_SMS_TEMPLATE,
-      smsProvider,
-      victimCarrier,
-      smtpEmail: smtpEmail.trim(),
-      smtpPassword: smtpPassword.trim(),
-      textbeltKey: textbeltKey.trim(),
-      twilioAccountSid: twilioAccountSid.trim(),
-      twilioAuthToken: twilioAuthToken.trim(),
-      twilioFromNumber: twilioFromNumber.trim(),
     };
     if (typeof window !== "undefined") {
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -195,7 +176,6 @@ export default function InfoPage() {
     const ok = window.confirm("This will erase ALL settings, card data, and transaction history. Are you sure?");
     if (!ok) return;
     try {
-      // Reset all form state to defaults
       setPranksterName(DEFAULT_CONFIG.pranksterName);
       setFriendName(DEFAULT_CONFIG.friendName);
       setAmountMode("fixed");
@@ -206,20 +186,13 @@ export default function InfoPage() {
       setVictimPhone("");
       setSendSms(false);
       setSmsTemplate(DEFAULT_SMS_TEMPLATE);
-      setSmsProvider("email");
-      setVictimCarrier("");
-      setSmtpEmail("");
-      setSmtpPassword("");
-      setTextbeltKey("");
-      setTwilioAccountSid("");
-      setTwilioAuthToken("");
-      setTwilioFromNumber("");
+      setAccessCode("");
+      setCodeUnlocked(false);
 
-      // Wipe old data AND save clean defaults so WalletScreen picks them up
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
 
-      setResetMessage("Everything cleared. All settings and card data reset to defaults.");
+      setResetMessage("Everything cleared.");
       setTimeout(() => setResetMessage(null), 2500);
     } catch {
       setResetMessage("Something went wrong. Try again.");
@@ -433,7 +406,9 @@ export default function InfoPage() {
           </div>
         </section>
 
-        {/* SMS Section */}
+        {/* ============================================================ */}
+        {/*  SMS Section                                                  */}
+        {/* ============================================================ */}
         <div
           style={{
             fontSize: 13,
@@ -448,6 +423,7 @@ export default function InfoPage() {
         </div>
 
         <section style={sectionStyle}>
+          {/* Toggle */}
           <div
             style={{
               ...rowStyle,
@@ -459,7 +435,7 @@ export default function InfoPage() {
             <div style={labelStyle}>Send text on prank</div>
             <button
               type="button"
-              onClick={() => setSendSms(!sendSms)}
+              onClick={() => { setSendSms(!sendSms); setCodeUnlocked(false); setAccessCode(""); setCodeError(false); }}
               style={{
                 width: 51,
                 height: 31,
@@ -488,11 +464,80 @@ export default function InfoPage() {
             </button>
           </div>
 
-          {sendSms && (
+          {/* Access code gate */}
+          {sendSms && !codeUnlocked && (
+            <div style={rowBorderStyle}>
+              <div style={labelStyle}>Enter access code</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                <input
+                  type="text"
+                  value={accessCode}
+                  onChange={(e) => { setAccessCode(e.target.value); setCodeError(false); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") handleCodeSubmit(); }}
+                  placeholder="Access code"
+                  autoCapitalize="characters"
+                  style={{
+                    ...inputStyle,
+                    fontSize: 16,
+                    letterSpacing: 2,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                    backgroundColor: C.gray6,
+                    border: codeError ? `2px solid ${C.red}` : "2px solid transparent",
+                    transition: "border-color 0.2s ease",
+                    animation: codeError ? "shake 0.4s ease" : "none",
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleCodeSubmit}
+                  style={{
+                    backgroundColor: C.blue,
+                    border: "none",
+                    color: "#fff",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    padding: "8px 16px",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                    flexShrink: 0,
+                  }}
+                >
+                  Unlock
+                </button>
+              </div>
+              {codeError && (
+                <div style={{ fontSize: 13, color: C.red, marginTop: 4, fontWeight: 500 }}>
+                  Invalid code
+                </div>
+              )}
+              <div style={hintStyle}>
+                An access code is required to use the SMS feature.
+              </div>
+            </div>
+          )}
+
+          {/* SMS fields — only visible after code is correct */}
+          {sendSms && codeUnlocked && (
             <>
               <div style={rowBorderStyle}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: C.green }} />
+                  <div style={{ fontSize: 13, color: C.green, fontWeight: 500 }}>SMS Unlocked</div>
+                </div>
+              </div>
+
+              <div style={rowBorderStyle}>
                 <div style={labelStyle}>Victim&apos;s phone number</div>
-                <input type="tel" inputMode="tel" placeholder="+1 (555) 123-4567" value={victimPhone} onChange={(e) => setVictimPhone(e.target.value)} style={inputStyle} />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={victimPhone}
+                  onChange={(e) => setVictimPhone(e.target.value)}
+                  style={inputStyle}
+                />
                 <div style={hintStyle}>The person who will receive the text when you trigger the prank.</div>
               </div>
 
@@ -527,52 +572,6 @@ export default function InfoPage() {
                   {smsPreview}
                 </div>
               </div>
-
-              {/* SMS Mode toggle */}
-              <div style={rowBorderStyle}>
-                <div style={labelStyle}>SMS Mode</div>
-                <div
-                  style={{
-                    display: "inline-flex",
-                    borderRadius: 8,
-                    backgroundColor: C.gray5,
-                    padding: 2,
-                    marginTop: 4,
-                  }}
-                >
-                  {([
-                    { key: "email" as const, label: "Free" },
-                    { key: "twilio" as const, label: "Premium" },
-                  ]).map((p) => (
-                    <button
-                      key={p.key}
-                      type="button"
-                      onClick={() => setSmsProvider(p.key)}
-                      style={{
-                        padding: "5px 18px",
-                        borderRadius: 7,
-                        border: "none",
-                        fontSize: 13,
-                        fontWeight: 500,
-                        cursor: "pointer",
-                        fontFamily: FONT,
-                        backgroundColor: smsProvider === p.key ? C.cardBg : "transparent",
-                        color: smsProvider === p.key ? C.label : C.secondaryLabel,
-                        boxShadow: smsProvider === p.key ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
-                      }}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-                <div style={hintStyle}>
-                  {smsProvider === "email"
-                    ? "Sends via email gateways. Free & unlimited. Works with most Canadian carriers (Rogers, Telus, Fido, SaskTel, etc)."
-                    : "Sends via Twilio. Works with ALL carriers including Bell. Requires a free Twilio account (twilio.com/try-twilio)."}
-                </div>
-              </div>
-
-
             </>
           )}
         </section>

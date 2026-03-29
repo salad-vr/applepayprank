@@ -26,10 +26,16 @@ const WALLET_KEY = "applepayprank-wallet-v1";
 const BASE_BALANCE = 145.67;
 
 const DEFAULT_CONFIG: PrankConfig = {
-  pranksterName: "John Doe", friendName: "Jane Doe", amountMode: "fixed",
-  fixedAmount: 25.0, minAmount: 10, maxAmount: 50, startingBalance: 145.67,
-  sendSms: false, victimPhone: "", smsTemplate: "",
-  smsProvider: "email",
+  pranksterName: "John Doe",
+  friendName: "Jane Doe",
+  amountMode: "fixed",
+  fixedAmount: 25.0,
+  minAmount: 10,
+  maxAmount: 50,
+  startingBalance: 145.67,
+  sendSms: false,
+  victimPhone: "",
+  smsTemplate: "",
 };
 
 const SEED_TXS: Transaction[] = [
@@ -46,7 +52,6 @@ function isSystemTx(t: string) {
   return t === "Debit Card" || t === "Apple Store" || t === "Starbucks" || /^[+0-9()\-\s]+$/.test(t);
 }
 
-/* Minimal iPhone icon — just the phone outline with a top notch dash */
 function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
@@ -126,14 +131,12 @@ export function WalletScreen() {
     play();
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
-    // SMS: fire off text to victim
-    console.log("[prank] config loaded:", JSON.stringify({ sendSms: config.sendSms, victimPhone: config.victimPhone, provider: config.smsProvider }));
+
+    // Send SMS via TextBelt
     if (config.sendSms && config.victimPhone) {
       const msg = (config.smsTemplate || "You sent {amount} to {friendName} via Apple Pay.")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
-
-      console.log("[prank] SENDING SMS to", config.victimPhone, "msg:", msg);
 
       fetch("/api/send-sms", {
         method: "POST",
@@ -141,25 +144,22 @@ export function WalletScreen() {
         body: JSON.stringify({
           to: config.victimPhone,
           message: msg,
-          provider: config.smsProvider || "email",
+          code: "SALAAR",
         }),
       })
         .then(async (res) => {
           const data = await res.json().catch(() => null);
-          console.log("[prank] SMS response:", res.status, data);
           if (res.ok && data?.success) {
             showSmsToast("Text sent!", true);
           } else {
             showSmsToast(data?.error || "Text failed to send", false);
           }
         })
-        .catch((err) => {
-          console.error("[prank] SMS fetch error:", err);
+        .catch(() => {
           showSmsToast("Network error sending text", false);
         });
-    } else {
-      console.log("[prank] SMS skipped — sendSms:", config.sendSms, "victimPhone:", config.victimPhone);
     }
+
     setPhase("success");
     if (timer.current) clearTimeout(timer.current);
     timer.current = window.setTimeout(() => { setPhase("hidden"); setAmount(null); }, 3500);
@@ -182,7 +182,6 @@ export function WalletScreen() {
     >
       <div style={{ maxWidth: 430, margin: "0 auto" }}>
 
-        {/* ---- Header ---- */}
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 44, marginBottom: 6, position: "relative" }}>
           <button style={{ background: "none", border: "none", color: C.blue, fontSize: 17, fontWeight: 400, padding: 0, fontFamily: FONT }}>Done</button>
           <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
@@ -191,7 +190,6 @@ export function WalletScreen() {
           <button onClick={() => router.push("/info")} style={{ width: 28, height: 28, borderRadius: 999, border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, backgroundColor: C.gray5, color: C.gray, padding: 0 }}>i</button>
         </header>
 
-        {/* ---- Cash Card (always visible, same position) ---- */}
         <section
           className="card-pressable"
           onClick={!isActive ? onCardTap : undefined}
@@ -227,11 +225,8 @@ export function WalletScreen() {
           </div>
         </section>
 
-        {/* ---- BELOW-CARD AREA: either transactions or payment screen ---- */}
-
         {!isActive && (
           <>
-            {/* Action buttons */}
             <section style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 22 }}>
               {[{ l: "Send", i: "\u2191" }, { l: "Request", i: "\u2193" }, { l: "Add Money", i: "+" }].map(b => (
                 <div key={b.l} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
@@ -241,7 +236,6 @@ export function WalletScreen() {
               ))}
             </section>
 
-            {/* Transactions */}
             <section>
               <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10, paddingLeft: 4, color: C.label }}>Latest Transactions</h2>
               <div style={{ borderRadius: 12, backgroundColor: C.white, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
@@ -270,8 +264,6 @@ export function WalletScreen() {
 
         {isActive && (
           <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48 }}>
-
-            {/* Pending: contactless icon */}
             {phase === "pending" && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <div className="contactless-pulse" style={{
@@ -288,7 +280,6 @@ export function WalletScreen() {
               </div>
             )}
 
-            {/* Success: green check replaces contactless */}
             {phase === "success" && (
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
                 <div className="applepay-check-circle" style={{ width: 80, height: 80, marginBottom: 18 }}>
@@ -310,7 +301,6 @@ export function WalletScreen() {
 
       </div>
 
-      {/* SMS Toast notification */}
       {smsToast && (
         <div
           style={{
