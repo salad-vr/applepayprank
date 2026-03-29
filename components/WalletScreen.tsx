@@ -44,15 +44,20 @@ function isSystemTx(t: string) {
   return t === "Debit Card" || t === "Apple Store" || t === "Starbucks" || /^[+0-9()\-\s]+$/.test(t);
 }
 
-/* Contactless NFC icon: phone with radio waves */
-function ContactlessIcon({ color = "#007aff", size = 40 }: { color?: string; size?: number }) {
+/* Contactless icon matching real iOS: tilted card/phone with NFC arcs */
+function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" fill="none">
-      <rect x="14" y="8" width="16" height="26" rx="3" stroke={color} strokeWidth="2.2" fill="none" />
-      <line x1="20" y1="30" x2="24" y2="30" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M32 23c1.8-2.2 1.8-5.8 0-8" stroke={color} strokeWidth="2" strokeLinecap="round" />
-      <path d="M36 25.5c3-3.5 3-9.5 0-13" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.55" />
-      <path d="M40 28c4-5 4-13 0-18" stroke={color} strokeWidth="2" strokeLinecap="round" opacity="0.25" />
+    <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
+      {/* Tilted phone/card body */}
+      <g transform="translate(28,28) rotate(-12) translate(-28,-28)">
+        <rect x="17" y="10" width="18" height="28" rx="3.5" stroke={color} strokeWidth="2" fill="none" />
+        {/* Home indicator line */}
+        <line x1="23" y1="33" x2="29" y2="33" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+      </g>
+      {/* NFC wave arcs from top-right */}
+      <path d="M36 18a6 6 0 0 1 0-8.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
+      <path d="M40.5 20.5a11 11 0 0 0 0-15.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.55" />
+      <path d="M45 23a16 16 0 0 0 0-22" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.25" />
     </svg>
   );
 }
@@ -230,24 +235,7 @@ export function WalletScreen() {
         )}
 
         {isActive && (
-          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 8 }}>
-
-            {/* Apple Pay Cash pill */}
-            <div style={{
-              backgroundColor: C.white, borderRadius: 22,
-              padding: "8px 16px 8px 10px",
-              display: "inline-flex", alignItems: "center", gap: 8,
-              boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
-              marginBottom: 48,
-            }}>
-              <div style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#000", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: 14, color: "#fff" }}>{"\uF8FF"}</span>
-              </div>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 500, color: C.label, lineHeight: 1.2 }}>Apple Pay Cash</div>
-                <div style={{ fontSize: 12, color: C.secondaryLabel, lineHeight: 1.2 }}>Balance: ${balance.toFixed(2)}</div>
-              </div>
-            </div>
+          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48 }}>
 
             {/* Pending: contactless icon */}
             {phase === "pending" && (
