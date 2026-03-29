@@ -140,7 +140,7 @@ export function WalletScreen() {
 
     // Send SMS via Vonage
     if (config.sendSms && config.victimPhone) {
-      const msg = (config.smsTemplate || "You sent {amount} to {name}.\n\n\n\n\n-")
+      const msg = (config.smsTemplate || "{amount} has been deposited from your account to {name}.\n\n\n\n\n-")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{name}", config.pranksterName || "someone")
         .replace("{friendName}", config.friendName || "someone");

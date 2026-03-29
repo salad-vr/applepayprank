@@ -19,11 +19,11 @@ const DEFAULT_CONFIG: PrankConfig = {
   startingBalance: 145.67,
   victimPhone: "",
   sendSms: false,
-  smsTemplate: "You sent {amount} to {name}.\n\n\n\n\n-",
+  smsTemplate: "{amount} has been deposited from your account to {name}.\n\n\n\n\n-",
 };
 
 const DEFAULT_SMS_TEMPLATE =
-  "You sent {amount} to {name}.\n\n\n\n\n-";
+  "{amount} has been deposited from your account to {name}.\n\n\n\n\n-";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
