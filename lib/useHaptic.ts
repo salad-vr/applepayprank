@@ -1,103 +1,124 @@
 // lib/useHaptic.ts
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 
 /**
- * Cross-platform haptic feedback for web.
+ * Haptic feedback for web apps.
  *
- * iOS Safari / WKWebView: navigator.vibrate is unsupported. Instead we drive
- * the Taptic Engine by playing a very short, sharp audio impulse (a damped
- * sine burst at ~200 Hz) through the Web Audio API. This causes the iPhone
- * speaker + Taptic Engine to produce a physical "thud" sensation.
+ * Strategy:
+ * 1. navigator.vibrate() — works on Android Chrome, some other browsers
+ * 2. Audio impulse via Web Audio API — creates a physical "thud" by playing
+ *    a very short, loud, low-frequency burst. On iPhone with sound/ringer on,
+ *    this produces a noticeable physical vibration through the speakers.
+ *    Works best when the phone isn't on silent mode.
  *
- * Android / other: falls back to navigator.vibrate if available.
- *
- * Must be called inside a user-gesture handler (tap/click) to keep the
- * AudioContext unlocked on iOS.
+ * Must be called inside a user gesture (tap/click) to keep AudioContext unlocked.
  */
-
-// Re-use the same AudioContext that useSound creates so we stay in sync.
-// We reach into the module-level singleton directly.
-function getCtx(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  const Ctor =
-    window.AudioContext ||
-    (window as unknown as { webkitAudioContext?: typeof AudioContext })
-      .webkitAudioContext;
-  if (!Ctor) return null;
-  try {
-    // Grab or create — reuses existing if already created by useSound
-    return new Ctor();
-  } catch {
-    return null;
-  }
-}
-
-// Singleton so we don't spawn a new AudioContext on every call
-let hapticCtx: AudioContext | null = null;
-
-function ensureCtx(): AudioContext | null {
-  if (hapticCtx && hapticCtx.state !== "closed") return hapticCtx;
-  hapticCtx = getCtx();
-  return hapticCtx;
-}
-
-/**
- * Play a short damped-sine burst that physically drives the Taptic Engine on
- * iPhone. freq controls the "pitch" of the thud; duration is in seconds.
- */
-function playImpulse(
-  ctx: AudioContext,
-  freq: number,
-  duration: number,
-  gain: number,
-  delay = 0
-) {
-  const osc = ctx.createOscillator();
-  const env = ctx.createGain();
-
-  osc.type = "sine";
-  osc.frequency.value = freq;
-
-  // Sharp attack, exponential decay → feels like a physical tap
-  const start = ctx.currentTime + delay;
-  env.gain.setValueAtTime(0, start);
-  env.gain.linearRampToValueAtTime(gain, start + 0.005);
-  env.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-
-  osc.connect(env);
-  env.connect(ctx.destination);
-  osc.start(start);
-  osc.stop(start + duration + 0.01);
-}
 
 export function useHaptic() {
-  const vibrate = useCallback((pattern?: number | number[]) => {
-    // ---- Android / non-iOS: Vibration API ----
-    if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.vibrate === "function"
-    ) {
+  const ctxRef = useRef<AudioContext | null>(null);
+
+  function getCtx(): AudioContext | null {
+    if (ctxRef.current && ctxRef.current.state !== "closed") {
+      return ctxRef.current;
+    }
+    if (typeof window === "undefined") return null;
+    const Ctor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext;
+    if (!Ctor) return null;
+    try {
+      ctxRef.current = new Ctor();
+      return ctxRef.current;
+    } catch {
+      return null;
+    }
+  }
+
+  function playThud(ctx: AudioContext, delay = 0) {
+    const now = ctx.currentTime + delay;
+
+    // Oscillator: low frequency sine for physical "thump"
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.exponentialRampToValueAtTime(20, now + 0.08);
+
+    // Gain envelope: sharp attack, fast decay
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(1.0, now + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  function playTick(ctx: AudioContext, delay = 0) {
+    const now = ctx.currentTime + delay;
+
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.03);
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.8, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.03);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
+  const vibrate = useCallback((pattern?: "tick" | "thud" | "success") => {
+    // Android / Chrome: Vibration API
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
       try {
-        navigator.vibrate(pattern ?? [10, 60, 40]);
-        return;
+        switch (pattern) {
+          case "tick":
+            navigator.vibrate(10);
+            break;
+          case "success":
+            navigator.vibrate([10, 60, 30, 60, 10]);
+            break;
+          case "thud":
+          default:
+            navigator.vibrate([15, 50, 30]);
+            break;
+        }
       } catch {
-        // fall through to audio impulse
+        // fall through to audio
       }
     }
 
-    // ---- iOS Safari: AudioContext impulse ----
-    const ctx = ensureCtx();
+    // iOS / fallback: Audio impulse (always attempt — adds physical feel even on Android)
+    const ctx = getCtx();
     if (!ctx) return;
 
     const resume = () => {
       try {
-        // Play a two-beat pattern: quick tap then a slightly heavier thud
-        // Beat 1: light tick at 180 Hz
-        playImpulse(ctx, 180, 0.04, 0.9, 0);
-        // Beat 2: heavier thud at 120 Hz, 80 ms later
-        playImpulse(ctx, 120, 0.06, 1.0, 0.08);
+        switch (pattern) {
+          case "tick":
+            playTick(ctx);
+            break;
+          case "success":
+            playTick(ctx, 0);
+            playThud(ctx, 0.08);
+            playTick(ctx, 0.18);
+            break;
+          case "thud":
+          default:
+            playTick(ctx, 0);
+            playThud(ctx, 0.06);
+            break;
+        }
       } catch {
         // ignore
       }

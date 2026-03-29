@@ -135,6 +135,7 @@ export function WalletScreen() {
   function onCardTap() {
     if (phase !== "hidden") return;
     prime();
+    vibrate("tick");
     setAmount(genAmount(config));
     // Animate sections out first, then show pending overlay
     setSectionsState("exiting");
@@ -151,7 +152,7 @@ export function WalletScreen() {
     // Immediately flip to success — the circle stays, icon morphs inside it
     setPhase("success");
     play();
-    vibrate([10, 80, 40]); // short buzz → pause → firm thud
+    vibrate("success");
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
 
