@@ -76,6 +76,7 @@ export function WalletScreen() {
     window.localStorage.setItem(WALLET_STORAGE_KEY, JSON.stringify({ balance: b, transactions: t }));
   }
 
+  // Load config + wallet on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -107,68 +108,172 @@ export function WalletScreen() {
     }
   }, []);
 
-  useEffect(() => { if (walletLoaded) persistWallet(balance, transactions); }, [balance, transactions, walletLoaded]);
-  useEffect(() => { return () => { if (hideTimeoutRef.current != null) clearTimeout(hideTimeoutRef.current); }; }, []);
+  useEffect(() => {
+    if (walletLoaded) persistWallet(balance, transactions);
+  }, [balance, transactions, walletLoaded]);
+
+  useEffect(() => {
+    return () => {
+      if (hideTimeoutRef.current != null) clearTimeout(hideTimeoutRef.current);
+    };
+  }, []);
+
+  // ---- handlers ----
 
   function handleTxClick(tx: Transaction) {
     const isPurchase = tx.title === "Apple Store" || tx.title === "Starbucks";
     const dir = isPurchase ? "purchase" : tx.direction === "out" ? "out" : "in";
-    let from = config.friendName || "Friend", to = config.pranksterName || "You";
-    if (dir === "in") { from = tx.title || from; to = config.pranksterName || "You"; }
-    else { from = config.pranksterName || "You"; to = tx.title || to; }
-    router.push(`/transaction?${new URLSearchParams({ amount: tx.amount.toFixed(2), from, to, direction: dir }).toString()}`);
+    let from = config.friendName || "Friend";
+    let to = config.pranksterName || "You";
+    if (dir === "in") {
+      from = tx.title || from;
+      to = config.pranksterName || "You";
+    } else {
+      from = config.pranksterName || "You";
+      to = tx.title || to;
+    }
+    const params = new URLSearchParams({ amount: tx.amount.toFixed(2), from, to, direction: dir });
+    router.push(`/transaction?${params.toString()}`);
   }
 
+  // Tap card -> show pending overlay, prime audio
   function handleCardClick() {
     if (overlayPhase !== "hidden") return;
-    prime();
+    prime(); // unlock audio in this user gesture
     const amount = generatePrankAmount(config);
     setPendingAmount(amount);
     setOverlayPhase("pending");
   }
 
+  // Tap ANYWHERE on the overlay while pending -> play sound + commit
+  // This is the critical handler. Must be on the outermost overlay div
+  // with NO stopPropagation on inner elements.
   function handleOverlayTap() {
     if (overlayPhase !== "pending" || pendingAmount == null) return;
     const amount = pendingAmount;
 
+    // Play sound DIRECTLY in this user tap -- most reliable for iOS
     play();
 
+    // Commit wallet updates
     setBalance((prev) => prev + amount);
-    setTransactions((prev) => [{
-      id: `prank-${Date.now()}`, title: config.friendName || "Friend",
-      subtitle: "Received \u00B7 just now", amount, direction: "in" as const,
-      timeLabel: "Just now", isPrank: true,
-    }, ...prev]);
+    setTransactions((prev) => [
+      {
+        id: `prank-${Date.now()}`,
+        title: config.friendName || "Friend",
+        subtitle: "Received \u00B7 just now",
+        amount,
+        direction: "in" as const,
+        timeLabel: "Just now",
+        isPrank: true,
+      },
+      ...prev,
+    ]);
 
+    // Fire SMS if configured
     if (config.sendSms && config.victimPhone) {
       const tmpl = config.smsTemplate || "You received {amount} from {friendName} via Apple Pay.";
-      const msg = tmpl.replace("{amount}", `$${amount.toFixed(2)}`).replace("{friendName}", config.friendName || "someone");
-      fetch("/api/send-sms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: config.victimPhone, message: msg }) }).catch(() => {});
+      const msg = tmpl
+        .replace("{amount}", `$${amount.toFixed(2)}`)
+        .replace("{friendName}", config.friendName || "someone");
+      fetch("/api/send-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: config.victimPhone, message: msg }),
+      }).catch(() => {});
     }
 
     setOverlayPhase("success");
+
+    // Auto-hide after linger
     if (hideTimeoutRef.current != null) clearTimeout(hideTimeoutRef.current);
-    hideTimeoutRef.current = window.setTimeout(() => { setOverlayPhase("hidden"); setPendingAmount(null); }, 3500);
+    hideTimeoutRef.current = window.setTimeout(() => {
+      setOverlayPhase("hidden");
+      setPendingAmount(null);
+    }, 3500);
   }
 
   const cardHolderName = config.pranksterName || "Cash";
-  const spinnerBlades = Array.from({ length: 12 }, (_, i) => <div key={i} className="ios-spinner-blade" />);
+  const spinnerBlades = Array.from({ length: 12 }, (_, i) => (
+    <div key={i} className="ios-spinner-blade" />
+  ));
 
   return (
-    <main style={{ minHeight: "100vh", backgroundColor: C.bg, padding: "0 16px", paddingTop: "max(8px, env(safe-area-inset-top, 8px))", paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))", fontFamily: FONT }}>
+    <main
+      style={{
+        minHeight: "100vh",
+        backgroundColor: C.bg,
+        padding: "0 12px",
+        paddingTop: "max(8px, env(safe-area-inset-top, 8px))",
+        paddingBottom: "max(20px, env(safe-area-inset-bottom, 20px))",
+        fontFamily: FONT,
+      }}
+    >
       <div style={{ maxWidth: 430, margin: "0 auto", position: "relative" }}>
 
         {/* ===== Header ===== */}
-        <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6, position: "relative", height: 44 }}>
-          <button style={{ background: "none", border: "none", color: C.blue, fontSize: 17, fontWeight: 400, padding: 0, cursor: "pointer", fontFamily: FONT }}>
+        <header
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 6,
+            position: "relative",
+            height: 44,
+          }}
+        >
+          <button
+            style={{
+              background: "none",
+              border: "none",
+              color: C.blue,
+              fontSize: 17,
+              fontWeight: 400,
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: FONT,
+            }}
+          >
             Done
           </button>
-          <div style={{ position: "absolute", left: 0, right: 0, textAlign: "center", pointerEvents: "none" }}>
-            <span style={{ fontSize: 20, fontWeight: 600, color: C.label, letterSpacing: "-0.02em" }}>
+          <div
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              textAlign: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <span
+              style={{
+                fontSize: 20,
+                fontWeight: 600,
+                color: C.label,
+                letterSpacing: "-0.02em",
+              }}
+            >
               {"\uF8FF"} Pay
             </span>
           </div>
-          <button onClick={() => router.push("/info")} style={{ width: 28, height: 28, borderRadius: 999, border: "none", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 600, backgroundColor: C.gray5, color: C.gray, padding: 0, cursor: "pointer" }}>
+          <button
+            onClick={() => router.push("/info")}
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 14,
+              fontWeight: 600,
+              backgroundColor: C.gray5,
+              color: C.gray,
+              padding: 0,
+              cursor: "pointer",
+            }}
+          >
             i
           </button>
         </header>
@@ -180,82 +285,215 @@ export function WalletScreen() {
           style={{
             marginBottom: 16,
             background: "#000000",
-            borderRadius: 16,
-            padding: "18px 20px 20px",
+            borderRadius: 20,
+            padding: "20px 22px 24px",
             color: "#fff",
             position: "relative",
-            boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
+            boxShadow: "0 12px 32px rgba(0,0,0,0.4)",
             overflow: "hidden",
             cursor: "pointer",
             width: "100%",
-            height: 200,
+            height: 230,
           }}
         >
           {/* Dot pattern */}
-          <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.12) 1px, transparent 1px)", backgroundSize: "7px 7px", pointerEvents: "none" }} />
-
-          <div style={{ position: "relative", display: "flex", flexDirection: "column", height: "100%", justifyContent: "space-between" }}>
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              opacity: 0.18,
+              backgroundImage:
+                "radial-gradient(circle, rgba(255,255,255,0.35) 1px, transparent 1px)",
+              backgroundSize: "8px 8px",
+              pointerEvents: "none",
+            }}
+          />
+          <div
+            style={{
+              position: "relative",
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              justifyContent: "space-between",
+            }}
+          >
             {/* Top row */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 20 }}>{"\uF8FF"}</span>
-                <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: 0.5 }}>Cash</span>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 24 }}>{"\uF8FF"}</span>
+                <span
+                  style={{ fontSize: 19, fontWeight: 600, letterSpacing: 0.5 }}
+                >
+                  Cash
+                </span>
               </div>
-              <div style={{ fontSize: 13, letterSpacing: 1.5, color: "rgba(255,255,255,0.65)" }}>
+              <div
+                style={{
+                  fontSize: 13,
+                  letterSpacing: 2,
+                  color: "rgba(255,255,255,0.75)",
+                }}
+              >
                 •••• 6767
               </div>
             </div>
             {/* Bottom row */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-              <div style={{ fontSize: 32, fontWeight: 600, letterSpacing: 0.3 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "flex-end",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: "2.1rem",
+                  fontWeight: 600,
+                  letterSpacing: 0.3,
+                }}
+              >
                 ${balance.toFixed(2)}
               </div>
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 9, textTransform: "uppercase", letterSpacing: 1.5, color: "rgba(255,255,255,0.5)", marginBottom: 2 }}>
+                <div
+                  style={{
+                    fontSize: 10,
+                    textTransform: "uppercase",
+                    letterSpacing: 1.2,
+                    color: "rgba(255,255,255,0.6)",
+                    marginBottom: 2,
+                  }}
+                >
                   Cardholder
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 500 }}>{cardHolderName}</div>
+                <div style={{ fontSize: 15, fontWeight: 500 }}>
+                  {cardHolderName}
+                </div>
               </div>
             </div>
           </div>
         </section>
 
         {/* ===== Action Buttons ===== */}
-        <section style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 20 }}>
+        <section
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            gap: 28,
+            marginBottom: 22,
+          }}
+        >
           {[
             { label: "Send", icon: "\u2191" },
             { label: "Request", icon: "\u2193" },
             { label: "Add Money", icon: "+" },
           ].map((btn) => (
-            <div key={btn.label} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-              <div style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: C.gray5, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 500, color: C.label }}>
+            <div
+              key={btn.label}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              <div
+                style={{
+                  width: 50,
+                  height: 50,
+                  borderRadius: 25,
+                  backgroundColor: C.gray5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 21,
+                  fontWeight: 500,
+                  color: C.label,
+                }}
+              >
                 {btn.icon}
               </div>
-              <span style={{ fontSize: 11, color: C.label, fontWeight: 400 }}>{btn.label}</span>
+              <span
+                style={{ fontSize: 11, color: C.label, fontWeight: 400 }}
+              >
+                {btn.label}
+              </span>
             </div>
           ))}
         </section>
 
         {/* ===== Transactions ===== */}
         <section>
-          <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10, paddingLeft: 4, color: C.label, letterSpacing: "-0.02em" }}>
+          <h2
+            style={{
+              fontSize: 20,
+              fontWeight: 700,
+              marginBottom: 10,
+              paddingLeft: 4,
+              color: C.label,
+              letterSpacing: "-0.02em",
+            }}
+          >
             Latest Transactions
           </h2>
 
-          <div className="glass-panel" style={{ borderRadius: 14, overflow: "hidden" }}>
+          <div
+            className="glass-panel"
+            style={{ borderRadius: 14, overflow: "hidden" }}
+          >
             {transactions.map((tx, index) => (
               <button
                 key={tx.id}
                 className="tx-row"
                 onClick={() => handleTxClick(tx)}
-                style={{ display: "flex", alignItems: "center", width: "100%", padding: "11px 14px", border: "none", background: "transparent", textAlign: "left", cursor: "pointer", position: "relative", fontFamily: FONT }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  width: "100%",
+                  padding: "12px 14px",
+                  border: "none",
+                  background: "transparent",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  position: "relative",
+                  fontFamily: FONT,
+                }}
               >
                 {index > 0 && (
-                  <div style={{ position: "absolute", top: 0, left: 58, right: 0, height: 0.5, backgroundColor: C.separator }} />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 58,
+                      right: 0,
+                      height: 0.5,
+                      backgroundColor: C.separator,
+                    }}
+                  />
                 )}
 
                 {isSystemTx(tx.title) ? (
-                  <div style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.gray5, color: C.gray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginRight: 10, flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: C.gray5,
+                      color: C.gray,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 16,
+                      marginRight: 10,
+                      flexShrink: 0,
+                    }}
+                  >
                     {"\u21C4"}
                   </div>
                 ) : (
@@ -265,7 +503,17 @@ export function WalletScreen() {
                 )}
 
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16, fontWeight: 400, marginBottom: 1, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div
+                    style={{
+                      fontSize: 16,
+                      fontWeight: 400,
+                      marginBottom: 1,
+                      color: C.label,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {tx.title}
                   </div>
                   <div style={{ fontSize: 14, color: C.secondaryLabel }}>
@@ -273,11 +521,27 @@ export function WalletScreen() {
                   </div>
                 </div>
 
-                <div style={{ fontSize: 16, fontWeight: 400, color: tx.direction === "in" ? C.green : C.label, marginLeft: 6, flexShrink: 0 }}>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 400,
+                    color: tx.direction === "in" ? C.green : C.label,
+                    marginLeft: 6,
+                    flexShrink: 0,
+                  }}
+                >
                   {tx.direction === "in" ? "+" : "-"}${tx.amount.toFixed(2)}
                 </div>
 
-                <div style={{ marginLeft: 6, color: C.gray3, fontSize: 14, fontWeight: 500, flexShrink: 0 }}>
+                <div
+                  style={{
+                    marginLeft: 6,
+                    color: C.gray3,
+                    fontSize: 14,
+                    fontWeight: 500,
+                    flexShrink: 0,
+                  }}
+                >
                   {"\u203A"}
                 </div>
               </button>
@@ -297,67 +561,134 @@ export function WalletScreen() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              backgroundColor: "rgba(0,0,0,0.45)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
+              backgroundColor: "rgba(0,0,0,0.4)",
+              backdropFilter: "blur(20px)",
+              WebkitBackdropFilter: "blur(20px)",
             }}
           >
+            {/* IMPORTANT: No stopPropagation here! Tapping anywhere
+                on the overlay (including this card) must trigger
+                handleOverlayTap so sound plays in user gesture. */}
             <div
               className="applepay-modal"
-              onClick={(e) => e.stopPropagation()}
               style={{
                 width: "min(340px, calc(100% - 48px))",
-                borderRadius: 20,
-                backgroundColor: "rgba(255,255,255,0.92)",
+                borderRadius: 22,
+                backgroundColor: "rgba(255,255,255,0.88)",
                 backdropFilter: "saturate(180%) blur(20px)",
                 WebkitBackdropFilter: "saturate(180%) blur(20px)",
                 boxShadow: "0 20px 50px rgba(0,0,0,0.3)",
-                padding: "28px 24px 24px",
+                padding: "28px 24px 28px",
                 textAlign: "center",
               }}
             >
               {/* Apple Pay header */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginBottom: 22, color: C.label }}>
-                <span style={{ fontSize: 22, lineHeight: 1 }}>{"\uF8FF"}</span>
-                <span style={{ fontSize: 17, fontWeight: 600, letterSpacing: 0.25 }}>Pay</span>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  marginBottom: 20,
+                  color: C.label,
+                }}
+              >
+                <span style={{ fontSize: 28, lineHeight: 1 }}>
+                  {"\uF8FF"}
+                </span>
+                <span
+                  style={{
+                    fontSize: 20,
+                    fontWeight: 600,
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  Pay
+                </span>
               </div>
 
               {overlayPhase === "pending" && (
                 <>
-                  <div className="ios-spinner" style={{ margin: "0 auto 20px" }}>
+                  <div
+                    className="ios-spinner"
+                    style={{ margin: "0 auto 20px" }}
+                  >
                     {spinnerBlades}
                   </div>
-                  <div style={{ fontSize: 17, fontWeight: 500, marginBottom: 4, color: C.label }}>
-                    Authorizing...
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      marginBottom: 4,
+                      color: C.label,
+                    }}
+                  >
+                    Verifying...
                   </div>
                   <div style={{ fontSize: 14, color: C.secondaryLabel }}>
-                    Please wait
+                    Tap to confirm
                   </div>
                 </>
               )}
 
               {overlayPhase === "success" && (
-                <div onClick={handleOverlayTap} style={{ cursor: "pointer" }}>
-                  <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-                    <Avatar name={config.friendName || "Friend"} size={52} />
+                <>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      marginBottom: 14,
+                    }}
+                  >
+                    <Avatar
+                      name={config.friendName || "Friend"}
+                      size={52}
+                    />
                   </div>
 
-                  <div className="applepay-check-circle" style={{ margin: "0 auto 14px" }}>
-                    <svg className="applepay-check-svg" viewBox="0 0 32 32">
-                      <path className="applepay-check-path" d="M9 17 L14 22 L23 11" />
+                  <div
+                    className="applepay-check-circle"
+                    style={{ margin: "0 auto 14px" }}
+                  >
+                    <svg
+                      className="applepay-check-svg"
+                      viewBox="0 0 32 32"
+                    >
+                      <path
+                        className="applepay-check-path"
+                        d="M9 17 L14 22 L23 11"
+                      />
                     </svg>
                   </div>
 
-                  <div style={{ fontSize: 17, fontWeight: 600, color: C.green, marginBottom: 6 }}>
-                    Done
+                  <div
+                    style={{
+                      fontSize: 18,
+                      fontWeight: 600,
+                      color: C.green,
+                      marginBottom: 6,
+                    }}
+                  >
+                    Payment Received
                   </div>
-                  <div style={{ fontSize: 36, fontWeight: 700, marginBottom: 4, color: C.label, letterSpacing: "-0.02em" }}>
-                    ${pendingAmount != null ? pendingAmount.toFixed(2) : "0.00"}
+                  <div
+                    style={{
+                      fontSize: 34,
+                      fontWeight: 700,
+                      marginBottom: 4,
+                      color: C.label,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    $
+                    {pendingAmount != null
+                      ? pendingAmount.toFixed(2)
+                      : "0.00"}
                   </div>
                   <div style={{ fontSize: 15, color: C.secondaryLabel }}>
                     from {config.friendName || "Friend"}
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
