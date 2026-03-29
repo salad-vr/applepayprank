@@ -1,54 +1,60 @@
 // app/transaction/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Avatar } from "@/components/Avatar";
 
 const CONFIG_STORAGE_KEY = "applepayprank-config";
 
 type TransactionDirection = "in" | "out" | "purchase";
 
-type TransactionPageProps = {
-  searchParams?: {
-    amount?: string;
-    from?: string;
-    to?: string;
-    direction?: TransactionDirection | string;
-  };
-};
+export default function TransactionPage() {
+  return (
+    <Suspense
+      fallback={
+        <main
+          style={{
+            minHeight: "100vh",
+            backgroundColor: "var(--ios-secondary-system-background)",
+          }}
+        />
+      }
+    >
+      <TransactionContent />
+    </Suspense>
+  );
+}
 
-export default function TransactionPage({ searchParams }: TransactionPageProps) {
-  // --- 1. Read & sanitize amount from URL (if present) ---
-  const rawAmountFromUrl = searchParams?.amount ?? "";
+function TransactionContent() {
+  const searchParams = useSearchParams();
 
-  // strip anything that's not digit, dot, or minus (handles "$27.43", "27,43", etc.)
-  const cleanedAmount = (rawAmountFromUrl || "").replace(/[^0-9.\-]/g, "");
-
+  // --- 1. Read & sanitize amount from URL ---
+  const rawAmountFromUrl = searchParams.get("amount") ?? "";
+  const cleanedAmount = rawAmountFromUrl.replace(/[^0-9.\-]/g, "");
   const parsedAmountFromUrl =
     cleanedAmount.trim().length > 0 ? Number.parseFloat(cleanedAmount) : NaN;
-
   const hasValidAmountFromUrl = Number.isFinite(parsedAmountFromUrl);
   const initialAmount = hasValidAmountFromUrl ? parsedAmountFromUrl : 0;
 
-  // --- 2. Names from URL (if present) ---
-  const initialFromName =
-    (searchParams?.from && searchParams.from.trim()) || "Friend";
-  const initialToName =
-    (searchParams?.to && searchParams.to.trim()) || "You";
+  // --- 2. Names from URL ---
+  const initialFromName = searchParams.get("from")?.trim() || "Friend";
+  const initialToName = searchParams.get("to")?.trim() || "You";
 
-  // --- 3. Direction of transaction (for future other placeholders) ---
-  const directionParam = (searchParams?.direction || "").toLowerCase();
+  // --- 3. Direction ---
+  const directionParam = (searchParams.get("direction") || "").toLowerCase();
   const direction: TransactionDirection =
     directionParam === "out" || directionParam === "purchase"
       ? (directionParam as TransactionDirection)
       : "in";
 
-  // --- 4. State so we can override from localStorage on the client ---
+  // --- 4. State ---
   const [amount, setAmount] = useState<number>(initialAmount);
   const [fromName, setFromName] = useState(initialFromName);
   const [toName, setToName] = useState(initialToName);
 
-  // --- 5. Fallback: pull names + amount from saved prank config ---
+  // --- 5. Fallback from localStorage config ---
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -75,40 +81,37 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
           ? cfg.fixedAmount
           : null;
 
-      // Only override names if URL didn't give us anything custom
-      if ((!searchParams?.from || initialFromName === "Friend") && cfgFriend) {
+      if (initialFromName === "Friend" && cfgFriend) {
         setFromName(cfgFriend);
       }
 
-      if ((!searchParams?.to || initialToName === "You") && cfgPrankster) {
+      if (initialToName === "You" && cfgPrankster) {
         setToName(cfgPrankster);
       }
 
-      // Only override amount if we DIDN'T get a valid amount from the URL
       if (!hasValidAmountFromUrl && cfgFixedAmount !== null) {
         setAmount(cfgFixedAmount);
       }
     } catch {
-      // If parsing fails, just keep the URL/default values.
+      // keep URL/default values
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once on mount
+  }, []);
 
   const formattedAmount = `$${amount.toFixed(2)}`;
 
-  // --- 6. Status line based on direction (ready for other transactions) ---
+  // --- 6. Status based on direction ---
   let statusLine = "Money Received";
-  let statusColor = "#16a34a";
+  let statusColor = "var(--ios-system-green)";
 
   if (direction === "out") {
     statusLine = "Money Sent";
-    statusColor = "#111827";
+    statusColor = "var(--ios-label)";
   } else if (direction === "purchase") {
     statusLine = "Purchase";
-    statusColor = "#111827";
+    statusColor = "var(--ios-label)";
   }
 
-  // Simple "now" date/time for realism
   const now = new Date();
   const dateFormatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -122,15 +125,17 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
 
   const dateLabel = dateFormatter.format(now);
   const timeLabel = timeFormatter.format(now);
-  const dateTimeLine = `${dateLabel} at ${timeLabel} • iPhone via Apple Pay`;
+  const dateTimeLine = `${dateLabel} at ${timeLabel} \u00B7 iPhone via Apple Pay`;
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "#f2f2f7",
-        padding: "0.75rem 0.75rem 2rem",
-        fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
+        backgroundColor: "var(--ios-secondary-system-background)",
+        padding: "0 16px 34px",
+        paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
+        fontFamily:
+          '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif',
       }}
     >
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -140,8 +145,9 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "0.5rem",
+            marginBottom: 8,
             position: "relative",
+            height: 44,
           }}
         >
           <Link
@@ -149,12 +155,16 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
             style={{
               background: "none",
               border: "none",
-              color: "#007aff",
+              color: "var(--ios-system-blue)",
               fontSize: 17,
-              fontWeight: 500,
+              fontWeight: 400,
               textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 2,
             }}
           >
+            <span style={{ fontSize: 20, fontWeight: 300, lineHeight: 1 }}>{"\u2039"}</span>
             Wallet
           </Link>
 
@@ -171,7 +181,7 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
               style={{
                 fontSize: 17,
                 fontWeight: 600,
-                color: "#111827",
+                color: "var(--ios-label)",
                 letterSpacing: 0.25,
               }}
             >
@@ -185,12 +195,12 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
         {/* Main receipt card */}
         <section
           style={{
-            borderRadius: 22,
-            backgroundColor: "#fff",
-            boxShadow: "0 10px 25px rgba(0,0,0,0.10)",
-            padding: "1.2rem 1.3rem 1.4rem",
-            marginTop: "0.5rem",
-            marginBottom: "1.1rem",
+            borderRadius: 10,
+            backgroundColor: "var(--ios-system-background)",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+            padding: "24px 20px 20px",
+            marginTop: 4,
+            marginBottom: 20,
           }}
         >
           {/* Apple Pay brand row */}
@@ -199,8 +209,8 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
               display: "flex",
               alignItems: "center",
               gap: 6,
-              marginBottom: 10,
-              color: "#111827",
+              marginBottom: 16,
+              color: "var(--ios-label)",
             }}
           >
             <span
@@ -208,7 +218,6 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
                 fontSize: 20,
                 lineHeight: 1,
                 display: "inline-block",
-                color: "#111827",
               }}
             >
               {"\uF8FF"}
@@ -218,55 +227,59 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
                 fontSize: 15,
                 fontWeight: 600,
                 letterSpacing: 0.25,
-                color: "#111827",
               }}
             >
               Pay
             </span>
           </div>
 
-          {/* Amount */}
+          {/* Avatar + Amount */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+            <Avatar name={fromName} size={52} />
+          </div>
+
           <div
             style={{
               fontSize: 34,
               fontWeight: 700,
               marginBottom: 4,
-              color: "#111827",
+              color: "var(--ios-label)",
+              textAlign: "center",
             }}
           >
             {formattedAmount}
           </div>
 
-          {/* Big name line (who it looks like it's from) */}
           <div
             style={{
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: 600,
               marginBottom: 4,
-              color: "#111827",
+              color: "var(--ios-label)",
+              textAlign: "center",
             }}
           >
             {fromName}
           </div>
 
-          {/* Status line (varies by direction) */}
           <div
             style={{
-              fontSize: 14,
+              fontSize: 15,
               color: statusColor,
               fontWeight: 500,
               marginBottom: 4,
+              textAlign: "center",
             }}
           >
             {statusLine}
           </div>
 
-          {/* Date / time / device */}
           <div
             style={{
               fontSize: 13,
-              color: "#6b7280",
-              marginBottom: 10,
+              color: "var(--ios-secondary-label)",
+              marginBottom: 16,
+              textAlign: "center",
             }}
           >
             {dateTimeLine}
@@ -275,112 +288,63 @@ export default function TransactionPage({ searchParams }: TransactionPageProps) 
           {/* Divider */}
           <div
             style={{
-              height: 1,
-              backgroundColor: "#e5e7eb",
-              margin: "0.7rem 0 0.7rem",
+              height: 0.5,
+              backgroundColor: "var(--ios-separator)",
+              margin: "0 0 12px",
             }}
           />
 
           {/* Detail rows */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              color: "#6b7280",
-              marginBottom: 4,
-            }}
-          >
-            <span>From</span>
-            <span style={{ color: "#111827", fontWeight: 500 }}>
-              {fromName}
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              color: "#6b7280",
-              marginBottom: 4,
-            }}
-          >
-            <span>To</span>
-            <span style={{ color: "#111827", fontWeight: 500 }}>
-              {toName}
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              color: "#6b7280",
-              marginBottom: 4,
-            }}
-          >
-            <span>Status</span>
-            <span style={{ color: "#16a34a", fontWeight: 500 }}>
-              Completed
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              color: "#6b7280",
-              marginBottom: 4,
-            }}
-          >
-            <span>Type</span>
-            <span>
-              {direction === "purchase" ? "Purchase" : "Instant Transfer"}
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              color: "#6b7280",
-              marginBottom: 4,
-            }}
-          >
-            <span>Device</span>
-            <span>iPhone • Apple Pay</span>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 13,
-              color: "#6b7280",
-            }}
-          >
-            <span>Reference</span>
-            <span>•••• •••• •••• 6767</span>
-          </div>
+          {[
+            { label: "From", value: fromName },
+            { label: "To", value: toName },
+            {
+              label: "Status",
+              value: "Completed",
+              color: "var(--ios-system-green)",
+            },
+            {
+              label: "Type",
+              value: direction === "purchase" ? "Purchase" : "Instant Transfer",
+            },
+            { label: "Device", value: "iPhone \u00B7 Apple Pay" },
+            { label: "Reference", value: "\u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 \u2022\u2022\u2022\u2022 6767" },
+          ].map((row, i) => (
+            <div
+              key={i}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 15,
+                color: "var(--ios-secondary-label)",
+                marginBottom: 8,
+              }}
+            >
+              <span>{row.label}</span>
+              <span
+                style={{
+                  color: row.color || "var(--ios-label)",
+                  fontWeight: 400,
+                }}
+              >
+                {row.value}
+              </span>
+            </div>
+          ))}
         </section>
 
-        {/* Tiny hint / safety line */}
+        {/* Disclaimer */}
         <p
           style={{
             fontSize: 11,
-            color: "#9ca3af",
+            color: "var(--ios-tertiary-label)",
             textAlign: "center",
             maxWidth: 320,
             margin: "0 auto",
             lineHeight: 1.5,
           }}
         >
-          This is a visual prank only. No actual money was moved. If someone’s
-          stressing, maybe tell them that part.
+          This is a visual prank only. No actual money was moved.
         </p>
       </div>
     </main>

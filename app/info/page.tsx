@@ -16,12 +16,64 @@ const DEFAULT_CONFIG: PrankConfig = {
   minAmount: 10,
   maxAmount: 50,
   startingBalance: 105,
+  victimPhone: "",
+  sendSms: false,
+  smsTemplate: "You received {amount} from {friendName} via Apple Pay.",
+};
+
+const DEFAULT_SMS_TEMPLATE =
+  "You received {amount} from {friendName} via Apple Pay.";
+
+// iOS-style shared styles
+const FONT =
+  '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
+
+const sectionStyle: React.CSSProperties = {
+  borderRadius: 10,
+  backgroundColor: "var(--ios-secondary-grouped-background)",
+  overflow: "hidden",
+  marginBottom: 16,
+};
+
+const rowStyle: React.CSSProperties = {
+  padding: "12px 16px",
+  borderTop: "none",
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+};
+
+const rowBorderStyle: React.CSSProperties = {
+  ...rowStyle,
+  borderTop: "0.5px solid var(--ios-separator)",
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: 15,
+  color: "var(--ios-label)",
+  fontWeight: 400,
+};
+
+const hintStyle: React.CSSProperties = {
+  fontSize: 13,
+  color: "var(--ios-secondary-label)",
+  lineHeight: 1.4,
+};
+
+const inputStyle: React.CSSProperties = {
+  border: "none",
+  outline: "none",
+  fontSize: 17,
+  padding: "4px 0",
+  background: "transparent",
+  color: "var(--ios-label)",
+  fontFamily: FONT,
+  width: "100%",
 };
 
 export default function InfoPage() {
   const router = useRouter();
 
-  // Local editable state.
   const [pranksterName, setPranksterName] = useState(DEFAULT_CONFIG.pranksterName);
   const [friendName, setFriendName] = useState(DEFAULT_CONFIG.friendName);
   const [amountMode, setAmountMode] = useState<PrankConfig["amountMode"]>("fixed");
@@ -30,10 +82,15 @@ export default function InfoPage() {
   const [maxAmount, setMaxAmount] = useState("50");
   const [startingBalance, setStartingBalance] = useState("105");
 
+  // SMS fields
+  const [victimPhone, setVictimPhone] = useState("");
+  const [sendSms, setSendSms] = useState(false);
+  const [smsTemplate, setSmsTemplate] = useState(DEFAULT_SMS_TEMPLATE);
+
   const [saving, setSaving] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // Load saved config (if any)
+  // Load saved config
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -54,26 +111,29 @@ export default function InfoPage() {
 
       if (typeof parsed.fixedAmount === "number") {
         setFixedAmount(parsed.fixedAmount.toFixed(2));
-      } else {
-        setFixedAmount((DEFAULT_CONFIG.fixedAmount ?? 67).toFixed(2));
       }
 
       if (typeof parsed.minAmount === "number") {
         setMinAmount(parsed.minAmount.toString());
-      } else {
-        setMinAmount((DEFAULT_CONFIG.minAmount ?? 10).toString());
       }
 
       if (typeof parsed.maxAmount === "number") {
         setMaxAmount(parsed.maxAmount.toString());
-      } else {
-        setMaxAmount((DEFAULT_CONFIG.maxAmount ?? 50).toString());
       }
 
       if (typeof parsed.startingBalance === "number") {
         setStartingBalance(parsed.startingBalance.toString());
-      } else if (typeof DEFAULT_CONFIG.startingBalance === "number") {
-        setStartingBalance(DEFAULT_CONFIG.startingBalance.toString());
+      }
+
+      // SMS fields
+      if (typeof parsed.victimPhone === "string") {
+        setVictimPhone(parsed.victimPhone);
+      }
+      if (typeof parsed.sendSms === "boolean") {
+        setSendSms(parsed.sendSms);
+      }
+      if (typeof parsed.smsTemplate === "string" && parsed.smsTemplate.trim()) {
+        setSmsTemplate(parsed.smsTemplate);
       }
     } catch (err) {
       console.warn("[info] failed to load config", err);
@@ -99,18 +159,19 @@ export default function InfoPage() {
       minAmount: min,
       maxAmount: max,
       startingBalance: starting,
+      victimPhone: victimPhone.trim(),
+      sendSms,
+      smsTemplate: smsTemplate.trim() || DEFAULT_SMS_TEMPLATE,
     };
 
     if (typeof window !== "undefined") {
-      // Save config
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
-      // Clear wallet cache so new starting balance + settings apply immediately
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
     }
 
     setTimeout(() => {
       setSaving(false);
-      router.push("/"); // back to main screen
+      router.push("/");
     }, 150);
   }
 
@@ -119,33 +180,35 @@ export default function InfoPage() {
 
     try {
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
-      setResetMessage(
-        "Card reset. Next time you open the wallet, it will start fresh from your starting balance."
-      );
+      setResetMessage("Card reset. Next time you open the wallet it will start fresh.");
       setTimeout(() => setResetMessage(null), 2500);
     } catch (err) {
       console.warn("[info] failed to reset wallet", err);
-      setResetMessage("Something went wrong resetting. Try again.");
+      setResetMessage("Something went wrong. Try again.");
       setTimeout(() => setResetMessage(null), 2500);
     }
   }
 
-  const previewLine =
+  // Preview text
+  const previewAmount =
     amountMode === "fixed"
-      ? `You'll appear to receive $${fixedAmount || "0.00"} from ${
-          friendName.trim() || DEFAULT_CONFIG.friendName
-        }.`
-      : `You'll appear to receive a random amount between $${minAmount || "10"} and $${
-          maxAmount || "50"
-        } from ${friendName.trim() || DEFAULT_CONFIG.friendName}.`;
+      ? `$${fixedAmount || "0.00"}`
+      : `$${minAmount || "10"}\u2013$${maxAmount || "50"}`;
+
+  const previewSender = friendName.trim() || DEFAULT_CONFIG.friendName;
+
+  const smsPreview = (smsTemplate || DEFAULT_SMS_TEMPLATE)
+    .replace("{amount}", previewAmount)
+    .replace("{friendName}", previewSender);
 
   return (
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "#f2f2f7",
-        padding: "0.75rem 0.75rem 2rem",
-        fontFamily: "-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
+        backgroundColor: "var(--ios-grouped-background)",
+        padding: "0 16px 34px",
+        paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
+        fontFamily: FONT,
       }}
     >
       <div style={{ maxWidth: 480, margin: "0 auto" }}>
@@ -155,11 +218,11 @@ export default function InfoPage() {
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            marginBottom: "0.5rem",
+            marginBottom: 8,
             position: "relative",
+            height: 44,
           }}
         >
-          {/* Left spacer to keep title centered */}
           <div style={{ width: 56 }} />
 
           <div
@@ -175,28 +238,28 @@ export default function InfoPage() {
               style={{
                 fontSize: 17,
                 fontWeight: 600,
-                color: "#111827",
-                letterSpacing: 0.25,
+                color: "var(--ios-label)",
               }}
             >
               Settings
             </span>
           </div>
 
-          {/* Black Save button on the right */}
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
-              backgroundColor: "#000000",
+              backgroundColor: "var(--ios-system-blue)",
               border: "none",
               color: "#ffffff",
               fontSize: 15,
               fontWeight: 600,
-              padding: "6px 14px",
+              padding: "6px 16px",
               borderRadius: 999,
-              minWidth: 72,
-              opacity: saving ? 0.85 : 1,
+              minWidth: 64,
+              opacity: saving ? 0.7 : 1,
+              cursor: "pointer",
+              fontFamily: FONT,
             }}
           >
             Save
@@ -207,539 +270,349 @@ export default function InfoPage() {
         <div
           style={{
             fontSize: 13,
-            fontWeight: 500,
-            color: "#6b7280",
+            fontWeight: 400,
+            color: "var(--ios-secondary-label)",
             textTransform: "uppercase",
             letterSpacing: 0.4,
-            margin: "0.25rem 0 0.5rem 0.15rem",
+            margin: "4px 0 8px 16px",
           }}
         >
           Prank Configuration
         </div>
 
         {/* Preview card */}
-        <section
-          style={{
-            borderRadius: 16,
-            backgroundColor: "#fff",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            padding: "0.75rem 0.9rem",
-            marginBottom: "1.0rem",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              textTransform: "uppercase",
-              letterSpacing: 0.4,
-              color: "#6b7280",
-              marginBottom: 6,
-            }}
-          >
+        <section style={{ ...sectionStyle, padding: "12px 16px" }}>
+          <div style={{ ...hintStyle, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, fontWeight: 500 }}>
             Preview
           </div>
-          <div
-            style={{
-              fontSize: 17,
-              lineHeight: 1.4,
-              color: "#111827",
-            }}
-          >
-            {previewLine}
+          <div style={{ fontSize: 17, lineHeight: 1.4, color: "var(--ios-label)" }}>
+            You&apos;ll appear to receive {previewAmount} from {previewSender}.
           </div>
         </section>
 
         {/* Config card */}
-        <section
-          style={{
-            borderRadius: 16,
-            backgroundColor: "#fff",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            overflow: "hidden",
-            marginBottom: "1.0rem",
-          }}
-        >
+        <section style={sectionStyle}>
           {/* Amount mode toggle */}
-          <div
-            style={{
-              padding: "0.75rem 0.9rem",
-              borderBottom: "1px solid #e5e7eb",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                color: "#111827",
-                marginBottom: 6,
-              }}
-            >
-              Amount Mode
-            </div>
+          <div style={rowStyle}>
+            <div style={labelStyle}>Amount Mode</div>
             <div
               style={{
                 display: "inline-flex",
-                borderRadius: 999,
-                backgroundColor: "#e5e7eb",
+                borderRadius: 8,
+                backgroundColor: "var(--ios-system-gray5)",
                 padding: 2,
+                marginTop: 4,
               }}
             >
-              <button
-                type="button"
-                onClick={() => setAmountMode("fixed")}
-                style={{
-                  padding: "4px 14px",
-                  borderRadius: 999,
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  backgroundColor: amountMode === "fixed" ? "#fff" : "transparent",
-                  color: amountMode === "fixed" ? "#111827" : "#4b5563",
-                  boxShadow:
-                    amountMode === "fixed" ? "0 1px 2px rgba(0,0,0,0.15)" : "none",
-                }}
-              >
-                Fixed
-              </button>
-              <button
-                type="button"
-                onClick={() => setAmountMode("range")}
-                style={{
-                  padding: "4px 14px",
-                  borderRadius: 999,
-                  border: "none",
-                  fontSize: 13,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  backgroundColor: amountMode === "range" ? "#fff" : "transparent",
-                  color: amountMode === "range" ? "#111827" : "#4b5563",
-                  boxShadow:
-                    amountMode === "range" ? "0 1px 2px rgba(0,0,0,0.15)" : "none",
-                }}
-              >
-                Range
-              </button>
+              {(["fixed", "range"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setAmountMode(mode)}
+                  style={{
+                    padding: "5px 16px",
+                    borderRadius: 7,
+                    border: "none",
+                    fontSize: 13,
+                    fontWeight: 500,
+                    cursor: "pointer",
+                    fontFamily: FONT,
+                    backgroundColor:
+                      amountMode === mode ? "var(--ios-system-background)" : "transparent",
+                    color:
+                      amountMode === mode ? "var(--ios-label)" : "var(--ios-secondary-label)",
+                    boxShadow:
+                      amountMode === mode
+                        ? "0 1px 3px rgba(0,0,0,0.12)"
+                        : "none",
+                  }}
+                >
+                  {mode === "fixed" ? "Fixed" : "Range"}
+                </button>
+              ))}
             </div>
-            <div
-              style={{
-                marginTop: 6,
-                fontSize: 12,
-                color: "#6b7280",
-              }}
-            >
+            <div style={hintStyle}>
               Choose one exact amount, or a random range for more realism.
             </div>
           </div>
 
-          {/* Fixed amount row */}
+          {/* Fixed amount */}
           {amountMode === "fixed" && (
-            <div
-              style={{
-                padding: "0.75rem 0.9rem",
-                borderTop: "1px solid #e5e7eb",
-                display: "flex",
-                flexDirection: "column",
-                gap: 6,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 15,
-                  color: "#111827",
-                }}
-              >
-                Fixed amount
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 16,
-                    marginRight: 4,
-                    color: "#111827",
-                  }}
-                >
-                  $
-                </span>
+            <div style={rowBorderStyle}>
+              <div style={labelStyle}>Fixed amount</div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ fontSize: 17, marginRight: 2, color: "var(--ios-label)" }}>$</span>
                 <input
                   type="text"
                   inputMode="decimal"
                   value={fixedAmount}
                   onChange={(e) => setFixedAmount(e.target.value)}
                   placeholder="67.00"
-                  style={{
-                    border: "none",
-                    outline: "none",
-                    fontSize: 16,
-                    padding: "4px 0",
-                    background: "transparent",
-                    color: "#111827",
-                    flex: 1,
-                  }}
+                  style={inputStyle}
                 />
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#6b7280",
-                }}
-              >
-                This is the exact amount that will show in the payment popup.
+              <div style={hintStyle}>
+                The exact amount shown in the payment popup.
               </div>
             </div>
           )}
 
-          {/* Range rows */}
+          {/* Range */}
           {amountMode === "range" && (
-            <div
-              style={{
-                padding: "0.75rem 0.9rem",
-                borderTop: "1px solid #e5e7eb",
-                display: "flex",
-                flexDirection: "column",
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 15,
-                  color: "#111827",
-                }}
-              >
-                Random range
-              </div>
-
-              <div
-                style={{
-                  display: "flex",
-                  gap: 12,
-                }}
-              >
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    borderRadius: 8,
-                    backgroundColor: "#f3f4f6",
-                    padding: "4px 8px",
-                  }}
-                >
-                  <span
+            <div style={rowBorderStyle}>
+              <div style={labelStyle}>Random range</div>
+              <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                {[
+                  { label: "Min", value: minAmount, setter: setMinAmount },
+                  { label: "Max", value: maxAmount, setter: setMaxAmount },
+                ].map((f) => (
+                  <div
+                    key={f.label}
                     style={{
-                      fontSize: 14,
-                      marginRight: 4,
-                      color: "#6b7280",
-                    }}
-                  >
-                    Min
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 16,
-                      marginRight: 2,
-                      color: "#111827",
-                    }}
-                  >
-                    $
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={minAmount}
-                    onChange={(e) => setMinAmount(e.target.value)}
-                    placeholder="10"
-                    style={{
-                      border: "none",
-                      outline: "none",
-                      fontSize: 15,
-                      padding: "4px 0",
-                      background: "transparent",
-                      color: "#111827",
                       flex: 1,
-                    }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    flex: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    borderRadius: 8,
-                    backgroundColor: "#f3f4f6",
-                    padding: "4px 8px",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 14,
-                      marginRight: 4,
-                      color: "#6b7280",
+                      display: "flex",
+                      alignItems: "center",
+                      borderRadius: 8,
+                      backgroundColor: "var(--ios-system-gray6)",
+                      padding: "4px 8px",
                     }}
                   >
-                    Max
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 16,
-                      marginRight: 2,
-                      color: "#111827",
-                    }}
-                  >
-                    $
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={maxAmount}
-                    onChange={(e) => setMaxAmount(e.target.value)}
-                    placeholder="50"
-                    style={{
-                      border: "none",
-                      outline: "none",
-                      fontSize: 15,
-                      padding: "4px 0",
-                      background: "transparent",
-                      color: "#111827",
-                      flex: 1,
-                    }}
-                  />
-                </div>
+                    <span style={{ fontSize: 13, marginRight: 4, color: "var(--ios-secondary-label)" }}>
+                      {f.label}
+                    </span>
+                    <span style={{ fontSize: 17, marginRight: 2, color: "var(--ios-label)" }}>$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={f.value}
+                      onChange={(e) => f.setter(e.target.value)}
+                      style={{ ...inputStyle, fontSize: 15 }}
+                    />
+                  </div>
+                ))}
               </div>
-
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#6b7280",
-                }}
-              >
-                Each time you tap the card, a new amount in this range will be used.
+              <div style={hintStyle}>
+                Each tap picks a new random amount in this range.
               </div>
             </div>
           )}
 
-          {/* Friend (sender) */}
-          <div
-            style={{
-              padding: "0.75rem 0.9rem",
-              borderTop: "1px solid #e5e7eb",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                color: "#111827",
-              }}
-            >
-              Friend&apos;s name (sender)
-            </div>
+          {/* Friend's name */}
+          <div style={rowBorderStyle}>
+            <div style={labelStyle}>Friend&apos;s name (sender)</div>
             <input
               type="text"
               placeholder="Apple Pay"
               value={friendName}
               onChange={(e) => setFriendName(e.target.value)}
-              style={{
-                border: "none",
-                outline: "none",
-                fontSize: 16,
-                padding: "4px 0",
-                background: "transparent",
-                color: "#111827",
-              }}
+              style={inputStyle}
             />
-            <div
-              style={{
-                fontSize: 12,
-                color: "#6b7280",
-              }}
-            >
-              This is who it will look like the money is coming from.
+            <div style={hintStyle}>
+              Who it looks like the money is coming from.
             </div>
           </div>
 
-          {/* Your name (receiver) */}
-          <div
-            style={{
-              padding: "0.75rem 0.9rem",
-              borderTop: "1px solid #e5e7eb",
-              display: "flex",
-              flexDirection: "column",
-              gap: 4,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                color: "#111827",
-              }}
-            >
-              Your name (receiver)
-            </div>
+          {/* Your name */}
+          <div style={rowBorderStyle}>
+            <div style={labelStyle}>Your name (receiver)</div>
             <input
               type="text"
               placeholder="You"
               value={pranksterName}
               onChange={(e) => setPranksterName(e.target.value)}
-              style={{
-                border: "none",
-                outline: "none",
-                fontSize: 16,
-                padding: "4px 0",
-                background: "transparent",
-                color: "#111827",
-              }}
+              style={inputStyle}
             />
-            <div
-              style={{
-                fontSize: 12,
-                color: "#6b7280",
-              }}
-            >
-              This is who it will look like the money was sent to.
+            <div style={hintStyle}>
+              Who it looks like the money was sent to.
             </div>
           </div>
 
           {/* Starting balance */}
-          <div
-            style={{
-              padding: "0.75rem 0.9rem",
-              borderTop: "1px solid #e5e7eb",
-              display: "flex",
-              flexDirection: "column",
-              gap: 6,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                color: "#111827",
-              }}
-            >
-              Starting balance on card
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 16,
-                  marginRight: 4,
-                  color: "#111827",
-                }}
-              >
-                $
-              </span>
+          <div style={rowBorderStyle}>
+            <div style={labelStyle}>Starting balance</div>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              <span style={{ fontSize: 17, marginRight: 2, color: "var(--ios-label)" }}>$</span>
               <input
                 type="text"
                 inputMode="decimal"
                 value={startingBalance}
                 onChange={(e) => setStartingBalance(e.target.value)}
                 placeholder="105"
-                style={{
-                  border: "none",
-                  outline: "none",
-                  fontSize: 16,
-                  padding: "4px 0",
-                  background: "transparent",
-                  color: "#111827",
-                  flex: 1,
-                }}
+                style={inputStyle}
               />
             </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "#6b7280",
-              }}
-            >
-              This is the balance your card shows when there&apos;s no saved history
-              yet (or after you reset transactions).
+            <div style={hintStyle}>
+              Balance shown on the card before any pranks (or after reset).
             </div>
           </div>
         </section>
 
-        {/* Reset & disclaimer */}
-        <section
+        {/* ---- SMS Prank Section ---- */}
+        <div
           style={{
-            borderRadius: 16,
-            backgroundColor: "#fff",
-            boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-            overflow: "hidden",
+            fontSize: 13,
+            fontWeight: 400,
+            color: "var(--ios-secondary-label)",
+            textTransform: "uppercase",
+            letterSpacing: 0.4,
+            margin: "4px 0 8px 16px",
           }}
         >
-          {/* Reset wallet row */}
+          SMS Prank Text
+        </div>
+
+        <section style={sectionStyle}>
+          {/* Toggle */}
+          <div
+            style={{
+              ...rowStyle,
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div style={labelStyle}>Send text on prank</div>
+            <button
+              type="button"
+              onClick={() => setSendSms(!sendSms)}
+              style={{
+                width: 51,
+                height: 31,
+                borderRadius: 16,
+                border: "none",
+                backgroundColor: sendSms ? "var(--ios-system-green)" : "var(--ios-system-gray5)",
+                position: "relative",
+                cursor: "pointer",
+                transition: "background-color 0.2s ease",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: 27,
+                  height: 27,
+                  borderRadius: 14,
+                  backgroundColor: "#fff",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+                  position: "absolute",
+                  top: 2,
+                  left: sendSms ? 22 : 2,
+                  transition: "left 0.2s ease",
+                }}
+              />
+            </button>
+          </div>
+
+          {sendSms && (
+            <>
+              {/* Phone number */}
+              <div style={rowBorderStyle}>
+                <div style={labelStyle}>Victim&apos;s phone number</div>
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  placeholder="+1 (555) 123-4567"
+                  value={victimPhone}
+                  onChange={(e) => setVictimPhone(e.target.value)}
+                  style={inputStyle}
+                />
+                <div style={hintStyle}>
+                  The person who will receive the text when you trigger the prank.
+                </div>
+              </div>
+
+              {/* Message template */}
+              <div style={rowBorderStyle}>
+                <div style={labelStyle}>Message template</div>
+                <textarea
+                  value={smsTemplate}
+                  onChange={(e) => setSmsTemplate(e.target.value)}
+                  placeholder={DEFAULT_SMS_TEMPLATE}
+                  rows={3}
+                  style={{
+                    ...inputStyle,
+                    resize: "none",
+                    fontSize: 15,
+                    lineHeight: 1.4,
+                  }}
+                />
+                <div style={hintStyle}>
+                  Use <strong>{"{amount}"}</strong> and <strong>{"{friendName}"}</strong> as
+                  placeholders. They&apos;ll be replaced with the actual values.
+                </div>
+              </div>
+
+              {/* SMS Preview */}
+              <div style={rowBorderStyle}>
+                <div style={{ ...hintStyle, textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 500, marginBottom: 2 }}>
+                  SMS Preview
+                </div>
+                <div
+                  style={{
+                    fontSize: 15,
+                    color: "var(--ios-label)",
+                    backgroundColor: "var(--ios-system-gray6)",
+                    borderRadius: 8,
+                    padding: "8px 10px",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {smsPreview}
+                </div>
+              </div>
+            </>
+          )}
+        </section>
+
+        {/* ---- Reset & Disclaimer ---- */}
+        <section style={sectionStyle}>
           <button
             type="button"
             onClick={handleResetWallet}
             style={{
               width: "100%",
-              padding: "0.85rem 0.9rem",
+              padding: "14px 16px",
               border: "none",
               background: "transparent",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
               cursor: "pointer",
+              fontFamily: FONT,
             }}
           >
             <span
               style={{
-                fontSize: 15,
-                color: "#dc2626",
-                fontWeight: 500,
+                fontSize: 17,
+                color: "var(--ios-system-red)",
+                fontWeight: 400,
               }}
             >
-              Reset card &amp; history
+              Reset Card & History
             </span>
-            <span
-              style={{
-                fontSize: 13,
-                color: "#9ca3af",
-              }}
-            >
-              Start fresh from your starting balance
+            <span style={{ fontSize: 13, color: "var(--ios-system-gray3)" }}>
+              {"\u203A"}
             </span>
           </button>
 
           {resetMessage && (
-            <div
-              style={{
-                padding: "0 0.9rem 0.75rem",
-                fontSize: 12,
-                color: "#6b7280",
-              }}
-            >
+            <div style={{ padding: "0 16px 12px", ...hintStyle }}>
               {resetMessage}
             </div>
           )}
 
-          {/* Divider */}
           <div
             style={{
-              height: 1,
-              backgroundColor: "#e5e7eb",
-              margin: "0 0.9rem",
+              height: 0.5,
+              backgroundColor: "var(--ios-separator)",
+              margin: "0 16px",
             }}
           />
 
-          {/* About / disclaimer */}
           <div
             style={{
-              padding: "0.8rem 0.9rem 0.95rem",
-              fontSize: 12,
-              color: "#6b7280",
+              padding: "12px 16px 14px",
+              ...hintStyle,
               lineHeight: 1.5,
             }}
           >
@@ -747,13 +620,13 @@ export default function InfoPage() {
               style={{
                 fontWeight: 600,
                 marginBottom: 4,
-                color: "#4b5563",
+                color: "var(--ios-secondary-label)",
               }}
             >
               About this app
             </div>
             This is a visual prank tool only. No real money is being sent or
-            received. Use it responsibly, and don&apos;t use it to scam, harass,
+            received. Use it responsibly and don&apos;t use it to scam, harass,
             or mislead people about actual payments.
           </div>
         </section>

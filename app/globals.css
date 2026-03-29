@@ -1,127 +1,102 @@
 @import "tailwindcss";
 
-/* ---------- Root Theme ---------- */
+/* ---------- iOS System Colors ---------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --ios-label: #000000;
+  --ios-secondary-label: rgba(60, 60, 67, 0.6);
+  --ios-tertiary-label: rgba(60, 60, 67, 0.3);
+  --ios-system-background: #ffffff;
+  --ios-secondary-system-background: #f2f2f7;
+  --ios-grouped-background: #f2f2f7;
+  --ios-secondary-grouped-background: #ffffff;
+  --ios-separator: rgba(60, 60, 67, 0.29);
+  --ios-system-blue: #007aff;
+  --ios-system-green: #34c759;
+  --ios-system-red: #ff3b30;
+  --ios-system-gray: #8e8e93;
+  --ios-system-gray3: #c7c7cc;
+  --ios-system-gray5: #e5e5ea;
+  --ios-system-gray6: #f2f2f7;
+  --ios-system-fill: rgba(60, 60, 67, 0.08);
 }
 
 /* ---------- Base Body ---------- */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro", Arial, Helvetica, sans-serif;
+  background: var(--ios-secondary-system-background);
+  color: var(--ios-label);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text",
+    "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent overscroll bounce on the body */
+  overscroll-behavior: none;
+  /* Safe area padding for PWA */
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-/* ---------- Apple Pay Header (Done ·  Pay · info) ---------- */
-.applepay-header {
-  padding: 6px 18px 8px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+/* ---------- Card Press Effect ---------- */
+.card-pressable {
+  transition: transform 0.15s ease;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.applepay-header-done {
-  font-size: 17px;
-  font-weight: 400;
-  color: #007aff;
+.card-pressable:active {
+  transform: scale(0.98);
 }
 
-.applepay-header-center {
-  display: flex;
-  align-items: baseline;
-  gap: 3px;
+/* ---------- Transaction Row Press ---------- */
+.tx-row {
+  transition: background-color 0.1s ease;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.applepay-header-logo {
-  font-size: 20px; /*  */
-  line-height: 1;
+.tx-row:active {
+  background-color: var(--ios-system-fill) !important;
 }
 
-.applepay-header-title {
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-/* round “i” button on the right */
-.applepay-header-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 9999px;
-  background: #f2f2f7;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  color: #8e8e93;
-}
-
-/* ---------- Main Wallet Card ---------- */
-.applepay-card {
+/* ---------- iOS Activity Indicator (segmented spinner) ---------- */
+.ios-spinner {
+  width: 37px;
+  height: 37px;
   position: relative;
-  overflow: hidden;
-  border-radius: 24px;
-  background: #050505;
-  color: #f9fafb;
-  padding: 20px 22px 24px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.65);
-
-  /* make the card clearly taller – closer to the real Apple Cash */
-  aspect-ratio: 1.35 / 1; /* width / height -> more height than before */
-  min-height: 190px;       /* safety so it never looks squished */
+  display: inline-block;
 }
 
-/* optional subtle dotted pattern like Apple Cash */
-.applepay-card::before {
-  content: "";
+.ios-spinner-blade {
   position: absolute;
-  inset: 0;
-  opacity: 0.22;
-  background-image: radial-gradient(circle at 1px 1px, #27272a 1px, transparent 0);
-  background-size: 8px 8px;
-  pointer-events: none;
+  left: 50%;
+  top: 0;
+  width: 2.5px;
+  height: 9px;
+  margin-left: -1.25px;
+  border-radius: 1.5px;
+  background-color: var(--ios-system-gray3);
+  transform-origin: center 18.5px;
+  animation: ios-spinner-fade 1s linear infinite;
 }
 
-/* ensure inner content sits above pattern */
-.applepay-card > * {
-  position: relative;
-  z-index: 1;
-}
+/* 12 blades at 30-degree increments */
+.ios-spinner-blade:nth-child(1)  { transform: rotate(0deg);   animation-delay: -1s; }
+.ios-spinner-blade:nth-child(2)  { transform: rotate(30deg);  animation-delay: -0.917s; }
+.ios-spinner-blade:nth-child(3)  { transform: rotate(60deg);  animation-delay: -0.833s; }
+.ios-spinner-blade:nth-child(4)  { transform: rotate(90deg);  animation-delay: -0.75s; }
+.ios-spinner-blade:nth-child(5)  { transform: rotate(120deg); animation-delay: -0.667s; }
+.ios-spinner-blade:nth-child(6)  { transform: rotate(150deg); animation-delay: -0.583s; }
+.ios-spinner-blade:nth-child(7)  { transform: rotate(180deg); animation-delay: -0.5s; }
+.ios-spinner-blade:nth-child(8)  { transform: rotate(210deg); animation-delay: -0.417s; }
+.ios-spinner-blade:nth-child(9)  { transform: rotate(240deg); animation-delay: -0.333s; }
+.ios-spinner-blade:nth-child(10) { transform: rotate(270deg); animation-delay: -0.25s; }
+.ios-spinner-blade:nth-child(11) { transform: rotate(300deg); animation-delay: -0.167s; }
+.ios-spinner-blade:nth-child(12) { transform: rotate(330deg); animation-delay: -0.083s; }
 
-/* ---------- Apple Pay Spinner ---------- */
-.applepay-spinner {
-  width: 46px;
-  height: 46px;
-  border-radius: 9999px;
-  border: 3px solid #e5e5ea;
-  border-top-color: #111827;
-  animation: applepay-spin 0.7s linear infinite;
-}
-
-@keyframes applepay-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+@keyframes ios-spinner-fade {
+  0%   { opacity: 1; }
+  100% { opacity: 0.15; }
 }
 
 /* ---------- Apple Pay Check Circle ---------- */
@@ -129,28 +104,43 @@ body {
   width: 64px;
   height: 64px;
   border-radius: 9999px;
-  background-color: rgba(52, 199, 89, 0.18);
+  background-color: rgba(52, 199, 89, 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
-  animation: checkPop 0.28s ease-out;
+  animation: checkPop 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.0);
 }
 
-.applepay-check-circle span {
-  font-size: 32px;
-  line-height: 1;
-  color: #34c759;
-  font-weight: 700;
+/* SVG checkmark stroke animation */
+.applepay-check-svg {
+  width: 32px;
+  height: 32px;
 }
 
-/* Subtle pop animation for success bubble */
+.applepay-check-path {
+  stroke: var(--ios-system-green);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 30;
+  stroke-dashoffset: 30;
+  animation: checkDraw 0.4s ease-out 0.15s forwards;
+}
+
+@keyframes checkDraw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @keyframes checkPop {
   0% {
-    transform: scale(0.7);
-    opacity: 0.3;
+    transform: scale(0);
+    opacity: 0;
   }
   60% {
-    transform: scale(1.08);
+    transform: scale(1.05);
     opacity: 1;
   }
   100% {
@@ -158,17 +148,30 @@ body {
   }
 }
 
-/* ---------- Overlay Fade ---------- */
+/* ---------- Bottom Sheet Overlay ---------- */
 .applepay-overlay-fade {
-  animation: overlayFade 0.25s ease-out;
+  animation: overlayDim 0.3s ease-out;
 }
 
-@keyframes overlayFade {
+@keyframes overlayDim {
   from {
     opacity: 0;
   }
   to {
     opacity: 1;
+  }
+}
+
+.applepay-sheet {
+  animation: sheetSlideUp 0.3s cubic-bezier(0.2, 0.9, 0.3, 1.0);
+}
+
+@keyframes sheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
   }
 }
 

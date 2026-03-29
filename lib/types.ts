@@ -2,19 +2,19 @@
 
 export type PrankConfig = {
   /**
-   * The person "receiving" the money – usually you.
+   * The person "receiving" the money -- usually you.
    */
   pranksterName: string;
 
   /**
-   * The person "sending" the money – the friend you're pretending sent it.
+   * The person "sending" the money -- the friend you're pretending sent it.
    */
   friendName: string;
 
   /**
    * Mode for how the prank amount is chosen.
-   * - "fixed" → always use fixedAmount
-   * - "range" → randomly choose between minAmount and maxAmount
+   * - "fixed" -> always use fixedAmount
+   * - "range" -> randomly choose between minAmount and maxAmount
    */
   amountMode: "fixed" | "range";
 
@@ -35,9 +35,25 @@ export type PrankConfig = {
 
   /**
    * Starting visible balance on the card when there's no saved wallet yet.
-   * Optional so existing saved configs don't break.
    */
   startingBalance?: number;
+
+  // ---- SMS Prank ----
+
+  /**
+   * Phone number of the person being pranked (for SMS delivery).
+   */
+  victimPhone?: string;
+
+  /**
+   * Whether to send an SMS when the prank triggers.
+   */
+  sendSms?: boolean;
+
+  /**
+   * Message template with {amount} and {friendName} placeholders.
+   */
+  smsTemplate?: string;
 };
 
 export type TransactionDirection = "in" | "out";
@@ -52,7 +68,6 @@ export type Transaction = {
 
   /**
    * Marks the transaction as one created by the prank flow.
-   * Used so we can treat it specially (click-through, styling, etc.).
    */
   isPrank?: boolean;
 };
