@@ -48,7 +48,7 @@ const SEED_TXS: Transaction[] = [
   { id: "5", title: "Starbucks", subtitle: "Purchase \u00B7 2 days ago", amount: 6.45, direction: "out", timeLabel: "" },
 ];
 
-type Phase = "hidden" | "pending" | "success";
+type Phase = "hidden" | "pending" | "success" | "settling";
 
 function isSystemTx(t: string) {
   return t === "Debit Card" || t === "Apple Store" || t === "Starbucks" || /^[+0-9()\-\s]+$/.test(t);
@@ -190,20 +190,26 @@ export function WalletScreen() {
     }
 
     if (timer.current) clearTimeout(timer.current);
+    // Show check + widget for 2s, then settle into the transaction list
     timer.current = window.setTimeout(() => {
-      setPhase("hidden");
-      setAmount(null);
+      setPhase("settling");
       setSectionsKey(k => k + 1);
       setSectionsState("visible");
-    }, 3500);
+      // After settle animation completes, go fully hidden
+      timer.current = window.setTimeout(() => {
+        setPhase("hidden");
+        setAmount(null);
+      }, 700);
+    }, 2200);
   }
 
   const holder = config.pranksterName || "Cash";
-  const isActive = phase !== "hidden";
+  const isOverlay = phase === "pending" || phase === "success" || morphing;
+  const isActive = phase !== "hidden" && phase !== "settling";
 
   return (
     <main
-      onClick={isActive ? onOverlayTap : undefined}
+      onClick={isOverlay ? onOverlayTap : undefined}
       style={{
         minHeight: "100vh",
         backgroundColor: C.bg,
@@ -213,7 +219,7 @@ export function WalletScreen() {
         fontFamily: FONT,
       }}
     >
-      <div style={{ maxWidth: 430, margin: "0 auto" }}>
+      <div style={{ maxWidth: 430, margin: "0 auto", position: "relative" }}>
 
         <header style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 44, marginBottom: 6, position: "relative" }}>
           <button style={{ background: "none", border: "none", color: C.blue, fontSize: 17, fontWeight: 400, padding: 0, fontFamily: FONT }}>Done</button>
@@ -225,7 +231,7 @@ export function WalletScreen() {
 
         <section
           className="card-pressable"
-          onClick={!isActive ? onCardTap : undefined}
+          onClick={phase === "hidden" ? onCardTap : undefined}
           style={{
             marginBottom: 16,
             background: "#000",
@@ -235,7 +241,7 @@ export function WalletScreen() {
             position: "relative",
             boxShadow: "0 12px 32px rgba(0,0,0,0.4)",
             overflow: "hidden",
-            cursor: isActive ? "default" : "pointer",
+            cursor: phase === "hidden" ? "pointer" : "default",
             height: 232,
           }}
         >
@@ -272,24 +278,27 @@ export function WalletScreen() {
             <section>
               <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 10, paddingLeft: 4, color: C.label }}>Latest Transactions</h2>
               <div style={{ borderRadius: 12, backgroundColor: C.white, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                {txs.map((tx, i) => (
-                  <button key={tx.id} className="tx-row" onClick={() => onTxClick(tx)} style={{ display: "flex", alignItems: "center", width: "100%", padding: "12px 14px", border: "none", backgroundColor: C.white, textAlign: "left", cursor: "pointer", position: "relative", fontFamily: FONT }}>
-                    {i > 0 && <div style={{ position: "absolute", top: 0, left: 58, right: 0, height: 0.5, backgroundColor: C.separator }} />}
-                    {isSystemTx(tx.title) ? (
-                      <div style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.gray5, color: C.gray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginRight: 10, flexShrink: 0 }}>{"\u21C4"}</div>
-                    ) : (
-                      <div style={{ marginRight: 10, flexShrink: 0 }}><Avatar name={tx.title} size={38} /></div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 400, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 1 }}>{tx.title}</div>
-                      <div style={{ fontSize: 14, color: C.secondaryLabel }}>{tx.subtitle}</div>
-                    </div>
-                    <span style={{ fontSize: 16, fontWeight: 400, color: tx.direction === "in" ? C.green : C.label, marginLeft: 6, flexShrink: 0 }}>
-                      {tx.direction === "in" ? "+" : "-"}${tx.amount.toFixed(2)}
-                    </span>
-                    <span style={{ marginLeft: 6, color: C.gray3, fontSize: 15, flexShrink: 0 }}>{"\u203A"}</span>
-                  </button>
-                ))}
+                {txs.map((tx, i) => {
+                  const isSettleRow = phase === "settling" && i === 0;
+                  return (
+                    <button key={tx.id} className={`tx-row${isSettleRow ? " tx-row-settle" : ""}`} onClick={() => onTxClick(tx)} style={{ display: "flex", alignItems: "center", width: "100%", padding: "12px 14px", border: "none", backgroundColor: C.white, textAlign: "left", cursor: "pointer", position: "relative", fontFamily: FONT, borderRadius: isSettleRow ? "12px 12px 0 0" : undefined }}>
+                      {i > 0 && <div style={{ position: "absolute", top: 0, left: 58, right: 0, height: 0.5, backgroundColor: C.separator }} />}
+                      {isSystemTx(tx.title) ? (
+                        <div style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: C.gray5, color: C.gray, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, marginRight: 10, flexShrink: 0 }}>{"\u21C4"}</div>
+                      ) : (
+                        <div style={{ marginRight: 10, flexShrink: 0 }}><Avatar name={tx.title} size={38} /></div>
+                      )}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 16, fontWeight: 400, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 1 }}>{tx.title}</div>
+                        <div style={{ fontSize: 14, color: C.secondaryLabel }}>{tx.subtitle}</div>
+                      </div>
+                      <span style={{ fontSize: 16, fontWeight: 400, color: tx.direction === "in" ? C.green : C.label, marginLeft: 6, flexShrink: 0 }}>
+                        {tx.direction === "in" ? "+" : "-"}${tx.amount.toFixed(2)}
+                      </span>
+                      <span style={{ marginLeft: 6, color: C.gray3, fontSize: 15, flexShrink: 0 }}>{"\u203A"}</span>
+                    </button>
+                  );
+                })}
               </div>
             </section>
           </div>
@@ -329,20 +338,20 @@ export function WalletScreen() {
                 </div>
                 <div style={{ fontSize: 17, fontWeight: 600, color: C.blue, marginBottom: 20, letterSpacing: 0.1 }}>Done</div>
 
-                {/* iOS transaction widget */}
-                <div className="success-tx-widget" style={{ width: "100%", borderRadius: 14, backgroundColor: C.white, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", overflow: "hidden" }}>
-                  <div style={{ display: "flex", alignItems: "center", padding: "14px 16px" }}>
+                {/* iOS transaction widget — big, centered */}
+                <div className="success-tx-widget" style={{ width: "100%", borderRadius: 14, backgroundColor: C.white, boxShadow: "0 4px 20px rgba(0,0,0,0.10)", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", padding: "16px 18px" }}>
                     <div style={{ marginRight: 12, flexShrink: 0 }}>
                       <Avatar name={config.friendName || "Friend"} size={42} />
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 16, fontWeight: 500, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
+                      <div style={{ fontSize: 17, fontWeight: 500, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
                         {config.friendName || "Friend"}
                       </div>
-                      <div style={{ fontSize: 13, color: C.secondaryLabel }}>Received · just now</div>
+                      <div style={{ fontSize: 14, color: C.secondaryLabel }}>Received · just now</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
-                      <div style={{ fontSize: 18, fontWeight: 600, color: C.green }}>
+                      <div style={{ fontSize: 20, fontWeight: 600, color: C.green }}>
                         +${amount != null ? amount.toFixed(2) : "0.00"}
                       </div>
                     </div>
@@ -351,6 +360,18 @@ export function WalletScreen() {
               </div>
             )}
 
+          </div>
+        )}
+
+        {/* Settling: check/Done fading out above the sections */}
+        {phase === "settling" && (
+          <div className="success-header-out" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 36, position: "absolute", left: 0, right: 0, zIndex: 10, pointerEvents: "none" }}>
+            <div style={{ width: 68, height: 68, borderRadius: 9999, backgroundColor: "rgba(0,122,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+              <svg viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
+                <path d="M9 17 L14 22 L23 11" stroke="#007aff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+              </svg>
+            </div>
+            <div style={{ fontSize: 17, fontWeight: 600, color: C.blue, letterSpacing: 0.1 }}>Done</div>
           </div>
         )}
 
