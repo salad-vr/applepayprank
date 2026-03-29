@@ -75,7 +75,9 @@ export function WalletScreen() {
   const [amount, setAmount] = useState<number | null>(null);
   const [smsToast, setSmsToast] = useState<{ message: string; success: boolean } | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [morphing, setMorphing] = useState(false);
   const timer = useRef<number | null>(null);
+  const morphTimer = useRef<number | null>(null);
   const smsToastTimer = useRef<number | null>(null);
 
   function genAmount(c: PrankConfig) {
@@ -107,6 +109,7 @@ export function WalletScreen() {
   useEffect(() => () => {
     if (timer.current) clearTimeout(timer.current);
     if (smsToastTimer.current) clearTimeout(smsToastTimer.current);
+    if (morphTimer.current) clearTimeout(morphTimer.current);
   }, []);
 
   function showSmsToast(message: string, success: boolean) {
@@ -132,8 +135,15 @@ export function WalletScreen() {
   }
 
   function onOverlayTap() {
-    if (phase !== "pending" || amount == null) return;
+    if (phase !== "pending" || amount == null || morphing) return;
     const a = amount;
+    // Start morph: animate pending out, then flip to success
+    setMorphing(true);
+    if (morphTimer.current) clearTimeout(morphTimer.current);
+    morphTimer.current = window.setTimeout(() => {
+      setMorphing(false);
+      setPhase("success");
+    }, 280);
     play();
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
@@ -270,32 +280,38 @@ export function WalletScreen() {
         )}
 
         {isActive && (
-          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48 }}>
-            {phase === "pending" && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div className="contactless-pulse" style={{
-                  width: 80, height: 80, borderRadius: 40,
-                  backgroundColor: "rgba(0,122,255,0.08)",
+          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48, minHeight: 160, position: "relative" }}>
+
+            {/* Pending state — exits with morph-out animation when tapped */}
+            {(phase === "pending" || morphing) && (
+              <div
+                className={morphing ? "pay-phase-out" : undefined}
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", position: morphing ? "absolute" : undefined }}
+              >
+                <div className={morphing ? undefined : "contactless-pulse"} style={{
+                  width: 68, height: 68, borderRadius: 34,
+                  backgroundColor: "rgba(0,122,255,0.09)",
                   display: "flex", alignItems: "center", justifyContent: "center",
-                  marginBottom: 18,
+                  marginBottom: 14,
                 }}>
-                  <ContactlessIcon color={C.blue} size={44} />
+                  <ContactlessIcon color={C.blue} size={36} />
                 </div>
-                <div style={{ fontSize: 21, fontWeight: 400, color: C.label }}>
+                <div style={{ fontSize: 17, fontWeight: 500, color: C.blue, letterSpacing: 0.1 }}>
                   Hold Near Reader
                 </div>
               </div>
             )}
 
-            {phase === "success" && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                <div className="applepay-check-circle" style={{ width: 80, height: 80, marginBottom: 18 }}>
-                  <svg className="applepay-check-svg" viewBox="0 0 32 32" style={{ width: 38, height: 38 }}>
+            {/* Success state — enters with morph-in animation */}
+            {phase === "success" && !morphing && (
+              <div className="pay-phase-in" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                <div className="applepay-check-circle" style={{ width: 68, height: 68, marginBottom: 14 }}>
+                  <svg className="applepay-check-svg" viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
                     <path className="applepay-check-path" d="M9 17 L14 22 L23 11" />
                   </svg>
                 </div>
-                <div style={{ fontSize: 21, fontWeight: 600, color: C.green, marginBottom: 8 }}>Done</div>
-                <div style={{ fontSize: 38, fontWeight: 700, color: C.label, letterSpacing: "-0.02em", marginBottom: 4 }}>
+                <div style={{ fontSize: 17, fontWeight: 600, color: C.green, marginBottom: 10, letterSpacing: 0.1 }}>Done</div>
+                <div style={{ fontSize: 36, fontWeight: 700, color: C.label, letterSpacing: "-0.02em", marginBottom: 4 }}>
                   ${amount != null ? amount.toFixed(2) : "0.00"}
                 </div>
                 <div style={{ fontSize: 15, color: C.secondaryLabel }}>
@@ -303,6 +319,7 @@ export function WalletScreen() {
                 </div>
               </div>
             )}
+
           </div>
         )}
 
