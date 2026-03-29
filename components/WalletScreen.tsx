@@ -44,20 +44,22 @@ function isSystemTx(t: string) {
   return t === "Debit Card" || t === "Apple Store" || t === "Starbucks" || /^[+0-9()\-\s]+$/.test(t);
 }
 
-/* Contactless icon matching real iOS: tilted card/phone with NFC arcs */
+/*
+ * Contactless icon matching real iOS Apple Pay.
+ * A simple upright rounded-rect phone with 3 concentric quarter-circle
+ * arcs radiating from the top-right corner of the phone body.
+ */
 function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 56 56" fill="none">
-      {/* Tilted phone/card body */}
-      <g transform="translate(28,28) rotate(-12) translate(-28,-28)">
-        <rect x="17" y="10" width="18" height="28" rx="3.5" stroke={color} strokeWidth="2" fill="none" />
-        {/* Home indicator line */}
-        <line x1="23" y1="33" x2="29" y2="33" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-      </g>
-      {/* NFC wave arcs from top-right */}
-      <path d="M36 18a6 6 0 0 1 0-8.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" />
-      <path d="M40.5 20.5a11 11 0 0 0 0-15.5" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.55" />
-      <path d="M45 23a16 16 0 0 0 0-22" stroke={color} strokeWidth="2" strokeLinecap="round" fill="none" opacity="0.25" />
+    <svg width={size} height={size} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      {/* Phone body — upright rounded rectangle */}
+      <rect x="8" y="4" width="18" height="30" rx="3" stroke={color} strokeWidth="1.8" />
+      {/* Screen notch / top bar */}
+      <line x1="14" y1="8" x2="20" y2="8" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      {/* NFC arcs — quarter circles from the phone's top-right corner (26,10) */}
+      <path d="M28 16 A6 6 0 0 0 28 4"   stroke={color} strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M33 19 A11 11 0 0 0 33 1"  stroke={color} strokeWidth="1.8" strokeLinecap="round" opacity="0.6" />
+      <path d="M38 22 A16 16 0 0 0 38 -2" stroke={color} strokeWidth="1.8" strokeLinecap="round" opacity="0.3" />
     </svg>
   );
 }
@@ -72,7 +74,9 @@ export function WalletScreen() {
   const [loaded, setLoaded] = useState(false);
   const [phase, setPhase] = useState<Phase>("hidden");
   const [amount, setAmount] = useState<number | null>(null);
+  const [smsToast, setSmsToast] = useState<{ message: string; success: boolean } | null>(null);
   const timer = useRef<number | null>(null);
+  const smsToastTimer = useRef<number | null>(null);
 
   function genAmount(c: PrankConfig) {
     if (c.amountMode === "fixed" && typeof c.fixedAmount === "number") return Number(c.fixedAmount.toFixed(2));
@@ -97,7 +101,16 @@ export function WalletScreen() {
   }, []);
 
   useEffect(() => { if (loaded) localStorage.setItem(WALLET_KEY, JSON.stringify({ balance, transactions: txs })); }, [balance, txs, loaded]);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+    if (smsToastTimer.current) clearTimeout(smsToastTimer.current);
+  }, []);
+
+  function showSmsToast(message: string, success: boolean) {
+    setSmsToast({ message, success });
+    if (smsToastTimer.current) clearTimeout(smsToastTimer.current);
+    smsToastTimer.current = window.setTimeout(() => setSmsToast(null), 3500);
+  }
 
   function onTxClick(tx: Transaction) {
     const isPurch = tx.title === "Apple Store" || tx.title === "Starbucks";
@@ -122,9 +135,46 @@ export function WalletScreen() {
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
     if (config.sendSms && config.victimPhone) {
-      const msg = (config.smsTemplate || "You received {amount} from {friendName} via Apple Pay.")
-        .replace("{amount}", `$${a.toFixed(2)}`).replace("{friendName}", config.friendName || "someone");
-      fetch("/api/send-sms", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: config.victimPhone, message: msg }) }).catch(() => {});
+      const msg = (config.smsTemplate || "APPLE PAY PRANK: You sent {amount} to {friendName}")
+        .replace("{amount}", `$${a.toFixed(2)}`)
+        .replace("{friendName}", config.friendName || "someone");
+
+      const provider = config.smsProvider || "email";
+      const smsBody: Record<string, string> = {
+        to: config.victimPhone,
+        message: msg,
+        provider,
+      };
+
+      // Attach provider-specific credentials
+      if (provider === "email") {
+        if (config.victimCarrier) smsBody.carrier = config.victimCarrier;
+        if (config.smtpEmail) smsBody.smtpEmail = config.smtpEmail;
+        if (config.smtpPassword) smsBody.smtpPassword = config.smtpPassword;
+      } else if (provider === "twilio") {
+        if (config.twilioAccountSid) smsBody.twilioAccountSid = config.twilioAccountSid;
+        if (config.twilioAuthToken) smsBody.twilioAuthToken = config.twilioAuthToken;
+        if (config.twilioFromNumber) smsBody.twilioFromNumber = config.twilioFromNumber;
+      } else {
+        if (config.textbeltKey) smsBody.textbeltKey = config.textbeltKey;
+      }
+
+      fetch("/api/send-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(smsBody),
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => null);
+          if (res.ok && data?.success) {
+            showSmsToast("Text sent!", true);
+          } else {
+            showSmsToast(data?.error || "Text failed to send", false);
+          }
+        })
+        .catch(() => {
+          showSmsToast("Network error sending text", false);
+        });
     }
     setPhase("success");
     if (timer.current) clearTimeout(timer.current);
@@ -275,6 +325,32 @@ export function WalletScreen() {
         )}
 
       </div>
+
+      {/* SMS Toast notification */}
+      {smsToast && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "max(30px, env(safe-area-inset-bottom, 30px))",
+            left: "50%",
+            transform: "translateX(-50%)",
+            backgroundColor: smsToast.success ? C.green : "#ff3b30",
+            color: "#fff",
+            padding: "10px 20px",
+            borderRadius: 12,
+            fontSize: 14,
+            fontWeight: 500,
+            fontFamily: FONT,
+            boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+            zIndex: 100,
+            maxWidth: "90vw",
+            textAlign: "center" as const,
+            animation: "fadeInUp 0.3s ease",
+          }}
+        >
+          {smsToast.message}
+        </div>
+      )}
     </main>
   );
 }
