@@ -9,20 +9,28 @@ const CONFIG_STORAGE_KEY = "applepayprank-config";
 const WALLET_STORAGE_KEY = "applepayprank-wallet-v1";
 
 const DEFAULT_CONFIG: PrankConfig = {
-  pranksterName: "You",
-  friendName: "Apple Pay",
+  pranksterName: "John Doe",
+  friendName: "Jane Doe",
   amountMode: "fixed",
-  fixedAmount: 67.0,
+  fixedAmount: 25.0,
   minAmount: 10,
   maxAmount: 50,
-  startingBalance: 105,
+  startingBalance: 145.67,
   victimPhone: "",
   sendSms: false,
-  smsTemplate: "You received {amount} from {friendName} via Apple Pay.",
+  smsTemplate: "APPLE PAY PRANK: You sent {amount} to {friendName}",
+  smsProvider: "email",
+  victimCarrier: "",
+  smtpEmail: "",
+  smtpPassword: "",
+  textbeltKey: "",
+  twilioAccountSid: "",
+  twilioAuthToken: "",
+  twilioFromNumber: "",
 };
 
 const DEFAULT_SMS_TEMPLATE =
-  "You received {amount} from {friendName} via Apple Pay.";
+  "APPLE PAY PRANK: You sent {amount} to {friendName}";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
@@ -91,14 +99,23 @@ export default function InfoPage() {
   const [pranksterName, setPranksterName] = useState(DEFAULT_CONFIG.pranksterName);
   const [friendName, setFriendName] = useState(DEFAULT_CONFIG.friendName);
   const [amountMode, setAmountMode] = useState<PrankConfig["amountMode"]>("fixed");
-  const [fixedAmount, setFixedAmount] = useState("67.00");
+  const [fixedAmount, setFixedAmount] = useState("25.00");
   const [minAmount, setMinAmount] = useState("10");
   const [maxAmount, setMaxAmount] = useState("50");
-  const [startingBalance, setStartingBalance] = useState("105");
+  const [startingBalance, setStartingBalance] = useState("145.67");
 
   const [victimPhone, setVictimPhone] = useState("");
   const [sendSms, setSendSms] = useState(false);
   const [smsTemplate, setSmsTemplate] = useState(DEFAULT_SMS_TEMPLATE);
+  // Provider fields kept in state for reset logic but not exposed in UI
+  const [smsProvider, setSmsProvider] = useState<"email" | "textbelt" | "twilio">("email");
+  const [victimCarrier, setVictimCarrier] = useState("");
+  const [smtpEmail, setSmtpEmail] = useState("");
+  const [smtpPassword, setSmtpPassword] = useState("");
+  const [textbeltKey, setTextbeltKey] = useState("");
+  const [twilioAccountSid, setTwilioAccountSid] = useState("");
+  const [twilioAuthToken, setTwilioAuthToken] = useState("");
+  const [twilioFromNumber, setTwilioFromNumber] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -120,12 +137,31 @@ export default function InfoPage() {
       if (typeof parsed.victimPhone === "string") setVictimPhone(parsed.victimPhone);
       if (typeof parsed.sendSms === "boolean") setSendSms(parsed.sendSms);
       if (typeof parsed.smsTemplate === "string" && parsed.smsTemplate.trim()) setSmsTemplate(parsed.smsTemplate);
+      if (parsed.smsProvider === "textbelt" || parsed.smsProvider === "twilio" || parsed.smsProvider === "email") setSmsProvider(parsed.smsProvider);
+      if (typeof parsed.victimCarrier === "string") setVictimCarrier(parsed.victimCarrier);
+      if (typeof parsed.smtpEmail === "string") setSmtpEmail(parsed.smtpEmail);
+      if (typeof parsed.smtpPassword === "string") setSmtpPassword(parsed.smtpPassword);
+      if (typeof parsed.textbeltKey === "string") setTextbeltKey(parsed.textbeltKey);
+      if (typeof parsed.twilioAccountSid === "string") setTwilioAccountSid(parsed.twilioAccountSid);
+      if (typeof parsed.twilioAuthToken === "string") setTwilioAuthToken(parsed.twilioAuthToken);
+      if (typeof parsed.twilioFromNumber === "string") setTwilioFromNumber(parsed.twilioFromNumber);
     } catch (err) {
       console.warn("[info] failed to load config", err);
     }
   }, []);
 
   function handleSave() {
+    // Confirm SMS details before saving
+    if (sendSms && victimPhone.trim()) {
+      const previewMsg = (smsTemplate || DEFAULT_SMS_TEMPLATE)
+        .replace("{amount}", amountMode === "fixed" ? `$${fixedAmount || "0.00"}` : "$XX.XX")
+        .replace("{friendName}", friendName.trim() || DEFAULT_CONFIG.friendName);
+      const ok = window.confirm(
+        `SMS will be sent to ${victimPhone.trim()} when the prank triggers.\n\nMessage preview:\n"${previewMsg}"\n\nIs this correct?`
+      );
+      if (!ok) return;
+    }
+
     setSaving(true);
     const config: PrankConfig = {
       pranksterName: pranksterName.trim() || DEFAULT_CONFIG.pranksterName,
@@ -138,6 +174,14 @@ export default function InfoPage() {
       victimPhone: victimPhone.trim(),
       sendSms,
       smsTemplate: smsTemplate.trim() || DEFAULT_SMS_TEMPLATE,
+      smsProvider,
+      victimCarrier,
+      smtpEmail: smtpEmail.trim(),
+      smtpPassword: smtpPassword.trim(),
+      textbeltKey: textbeltKey.trim(),
+      twilioAccountSid: twilioAccountSid.trim(),
+      twilioAuthToken: twilioAuthToken.trim(),
+      twilioFromNumber: twilioFromNumber.trim(),
     };
     if (typeof window !== "undefined") {
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
@@ -148,9 +192,34 @@ export default function InfoPage() {
 
   function handleResetWallet() {
     if (typeof window === "undefined") return;
+    const ok = window.confirm("This will erase ALL settings, card data, and transaction history. Are you sure?");
+    if (!ok) return;
     try {
+      // Reset all form state to defaults
+      setPranksterName(DEFAULT_CONFIG.pranksterName);
+      setFriendName(DEFAULT_CONFIG.friendName);
+      setAmountMode("fixed");
+      setFixedAmount("25.00");
+      setMinAmount("10");
+      setMaxAmount("50");
+      setStartingBalance("145.67");
+      setVictimPhone("");
+      setSendSms(false);
+      setSmsTemplate(DEFAULT_SMS_TEMPLATE);
+      setSmsProvider("email");
+      setVictimCarrier("");
+      setSmtpEmail("");
+      setSmtpPassword("");
+      setTextbeltKey("");
+      setTwilioAccountSid("");
+      setTwilioAuthToken("");
+      setTwilioFromNumber("");
+
+      // Wipe old data AND save clean defaults so WalletScreen picks them up
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
-      setResetMessage("Card reset. Next time you open the wallet it will start fresh.");
+      window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(DEFAULT_CONFIG));
+
+      setResetMessage("Everything cleared. All settings and card data reset to defaults.");
       setTimeout(() => setResetMessage(null), 2500);
     } catch {
       setResetMessage("Something went wrong. Try again.");
@@ -299,7 +368,7 @@ export default function InfoPage() {
                   inputMode="decimal"
                   value={fixedAmount}
                   onChange={(e) => setFixedAmount(e.target.value)}
-                  placeholder="67.00"
+                  placeholder="25.00"
                   style={inputStyle}
                 />
               </div>
@@ -344,13 +413,13 @@ export default function InfoPage() {
 
           <div style={rowBorderStyle}>
             <div style={labelStyle}>Friend&apos;s name (sender)</div>
-            <input type="text" placeholder="Apple Pay" value={friendName} onChange={(e) => setFriendName(e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="Jane Doe" value={friendName} onChange={(e) => setFriendName(e.target.value)} style={inputStyle} />
             <div style={hintStyle}>Who it looks like the money is coming from.</div>
           </div>
 
           <div style={rowBorderStyle}>
             <div style={labelStyle}>Your name (receiver)</div>
-            <input type="text" placeholder="You" value={pranksterName} onChange={(e) => setPranksterName(e.target.value)} style={inputStyle} />
+            <input type="text" placeholder="John Doe" value={pranksterName} onChange={(e) => setPranksterName(e.target.value)} style={inputStyle} />
             <div style={hintStyle}>Who it looks like the money was sent to.</div>
           </div>
 
@@ -358,7 +427,7 @@ export default function InfoPage() {
             <div style={labelStyle}>Starting balance</div>
             <div style={{ display: "flex", alignItems: "center" }}>
               <span style={{ fontSize: 17, marginRight: 2, color: C.label }}>$</span>
-              <input type="text" inputMode="decimal" value={startingBalance} onChange={(e) => setStartingBalance(e.target.value)} placeholder="105" style={inputStyle} />
+              <input type="text" inputMode="decimal" value={startingBalance} onChange={(e) => setStartingBalance(e.target.value)} placeholder="145.67" style={inputStyle} />
             </div>
             <div style={hintStyle}>Balance shown on the card before any pranks (or after reset).</div>
           </div>
@@ -458,6 +527,14 @@ export default function InfoPage() {
                   {smsPreview}
                 </div>
               </div>
+
+              {/* Info about how texting works */}
+              <div style={rowBorderStyle}>
+                <div style={hintStyle}>
+                  Texts are sent automatically to all Canadian carriers when the prank triggers.
+                  Works with Rogers, Bell, Telus, Fido, Koodo, Freedom, SaskTel, and more.
+                </div>
+              </div>
             </>
           )}
         </section>
@@ -480,7 +557,7 @@ export default function InfoPage() {
             }}
           >
             <span style={{ fontSize: 17, color: C.red, fontWeight: 400 }}>
-              Reset Card & History
+              Reset Everything
             </span>
             <span style={{ fontSize: 13, color: C.gray3 }}>{"\u203A"}</span>
           </button>

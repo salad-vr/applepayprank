@@ -54,6 +54,58 @@ export type PrankConfig = {
    * Message template with {amount} and {friendName} placeholders.
    */
   smsTemplate?: string;
+
+  /**
+   * SMS provider:
+   * - "email"    — Free & unlimited via email-to-SMS carrier gateways (recommended)
+   * - "textbelt" — 1 free text/day, or buy a key for more
+   * - "twilio"   — Free trial, then pay-per-text
+   */
+  smsProvider?: "email" | "textbelt" | "twilio";
+
+  // ---- Email-to-SMS gateway fields ----
+
+  /**
+   * Victim's mobile carrier (e.g. "verizon", "att", "tmobile").
+   * Required when smsProvider === "email".
+   */
+  victimCarrier?: string;
+
+  /**
+   * Gmail address used to send the email-to-SMS.
+   */
+  smtpEmail?: string;
+
+  /**
+   * Gmail App Password (NOT your regular password).
+   * Generate at https://myaccount.google.com/apppasswords
+   */
+  smtpPassword?: string;
+
+  // ---- TextBelt fields ----
+
+  /**
+   * TextBelt API key. Defaults to "textbelt" (1 free text/day).
+   * Purchase keys at https://textbelt.com for more.
+   */
+  textbeltKey?: string;
+
+  // ---- Twilio fields ----
+
+  /**
+   * Twilio Account SID (from twilio.com/console).
+   */
+  twilioAccountSid?: string;
+
+  /**
+   * Twilio Auth Token.
+   */
+  twilioAuthToken?: string;
+
+  /**
+   * Twilio "From" phone number (e.g. +15551234567).
+   */
+  twilioFromNumber?: string;
 };
 
 export type TransactionDirection = "in" | "out";

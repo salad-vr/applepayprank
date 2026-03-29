@@ -23,11 +23,11 @@ const C = {
 const FONT = '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
 const CONFIG_KEY = "applepayprank-config";
 const WALLET_KEY = "applepayprank-wallet-v1";
-const BASE_BALANCE = 105;
+const BASE_BALANCE = 145.67;
 
 const DEFAULT_CONFIG: PrankConfig = {
-  pranksterName: "You", friendName: "Apple Pay", amountMode: "fixed",
-  fixedAmount: 67.0, minAmount: 10, maxAmount: 50, startingBalance: 105,
+  pranksterName: "John Doe", friendName: "Jane Doe", amountMode: "fixed",
+  fixedAmount: 25.0, minAmount: 10, maxAmount: 50, startingBalance: 145.67,
 };
 
 const SEED_TXS: Transaction[] = [
