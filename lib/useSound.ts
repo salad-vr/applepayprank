@@ -10,61 +10,56 @@ type UseSoundOptions = {
 /**
  * Robust sound hook for iOS PWAs / home-screen web apps.
  *
- * Uses Web Audio API (AudioContext) as primary engine with HTMLAudioElement
- * fallback. Handles iOS background suspension, audio context interruption,
- * and stale element recovery.
+ * Primary: Web Audio API (AudioContext) with pre-decoded AudioBuffer.
+ * Fallback: HTMLAudioElement (re-created on visibility change).
  *
- * Key design:
- * - Singleton AudioContext shared across hook instances
- * - Sound pre-decoded into AudioBuffer for instant playback
- * - Global touch/click listeners keep the context alive
- * - visibilitychange listener resumes context + re-creates fallback element
- * - play() should still be called from a user gesture for best reliability
+ * Key reliability measures:
+ * - Singleton AudioContext with global gesture listeners to keep it alive
+ * - visibilitychange handler resumes context + rebuilds fallback element
+ * - play() attempts AudioContext first, catches errors, falls back to HTML5
+ * - No crossOrigin on HTMLAudioElement (same-origin resource, avoids CORS issues)
+ * - play() always called directly inside user tap handler
  */
 
 // ---- Singleton AudioContext ----
 let sharedCtx: AudioContext | null = null;
 let globalListenersAttached = false;
 
-function getAudioContext(): AudioContext | null {
+function getOrCreateContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
 
-  if (!sharedCtx) {
-    const Ctor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext;
-    if (!Ctor) return null;
+  if (sharedCtx) return sharedCtx;
 
-    try {
-      sharedCtx = new Ctor();
-    } catch {
-      return null;
-    }
+  const Ctor =
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
+  if (!Ctor) return null;
+
+  try {
+    sharedCtx = new Ctor();
+  } catch {
+    return null;
   }
 
   return sharedCtx;
 }
 
-/**
- * Resume the shared AudioContext. Safe to call repeatedly.
- * Must be called from a user gesture on iOS to actually unlock.
- */
+/** Resume AudioContext — safe to call repeatedly from any gesture. */
 function resumeContext() {
   const ctx = sharedCtx;
   if (!ctx) return;
 
   if (ctx.state === "suspended" || (ctx.state as string) === "interrupted") {
-    ctx.resume().catch(() => {
-      // ignore -- we'll try again on the next gesture
-    });
+    try {
+      ctx.resume().catch(() => {});
+    } catch {
+      // older browsers may not return a promise
+    }
   }
 }
 
-/**
- * Attach global listeners ONCE so every tap/click keeps the context alive.
- * Also handles visibilitychange for returning from background.
- */
+/** Attach global listeners ONCE so every tap keeps the context alive. */
 function ensureGlobalListeners() {
   if (globalListenersAttached || typeof window === "undefined") return;
   globalListenersAttached = true;
@@ -75,108 +70,96 @@ function ensureGlobalListeners() {
   window.addEventListener("click", resumeContext, opts);
 
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) {
-      resumeContext();
-    }
+    if (!document.hidden) resumeContext();
   });
 }
 
 export function useSound(src: string, options?: UseSoundOptions) {
   const audioBufferRef = useRef<AudioBuffer | null>(null);
-  const fallbackAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fallbackRef = useRef<HTMLAudioElement | null>(null);
   const srcRef = useRef(src);
   const volumeRef = useRef(options?.volume ?? 1);
 
-  // ---- Setup: decode buffer + create fallback element ----
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     srcRef.current = src;
     volumeRef.current = options?.volume ?? 1;
 
-    const ctx = getAudioContext();
+    const ctx = getOrCreateContext();
     ensureGlobalListeners();
 
     let cancelled = false;
 
-    // --- Web Audio API: fetch + decode into buffer ---
+    // ---- Web Audio API: fetch + decode ----
     if (ctx) {
       fetch(src)
-        .then((res) => res.arrayBuffer())
+        .then((r) => r.arrayBuffer())
         .then((raw) => ctx.decodeAudioData(raw))
         .then((decoded) => {
-          if (!cancelled) {
-            audioBufferRef.current = decoded;
-          }
+          if (!cancelled) audioBufferRef.current = decoded;
         })
         .catch((err) => {
-          console.warn("[useSound] failed to decode audio buffer", err);
+          console.warn("[useSound] buffer decode failed:", err);
         });
     }
 
-    // --- HTMLAudioElement fallback ---
-    const audio = createFallbackElement(src, volumeRef.current);
-    fallbackAudioRef.current = audio;
+    // ---- HTMLAudioElement fallback ----
+    const audio = makeFallback(src, volumeRef.current);
+    fallbackRef.current = audio;
 
-    // --- Recreate fallback on visibility change (stale element recovery) ---
-    function handleVisibility() {
+    // Re-create fallback when app returns from background (stale element fix)
+    function onVisibility() {
       if (!document.hidden && !cancelled) {
-        const fresh = createFallbackElement(srcRef.current, volumeRef.current);
-        fallbackAudioRef.current = fresh;
+        fallbackRef.current = makeFallback(srcRef.current, volumeRef.current);
       }
     }
-
-    document.addEventListener("visibilitychange", handleVisibility);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       cancelled = true;
-      document.removeEventListener("visibilitychange", handleVisibility);
-
+      document.removeEventListener("visibilitychange", onVisibility);
       try {
-        if (fallbackAudioRef.current) {
-          fallbackAudioRef.current.pause();
-          fallbackAudioRef.current.removeAttribute("src");
-          fallbackAudioRef.current.load();
-        }
-      } catch {
-        // ignore
-      }
-      fallbackAudioRef.current = null;
+        fallbackRef.current?.pause();
+      } catch { /* ignore */ }
+      fallbackRef.current = null;
       audioBufferRef.current = null;
     };
   }, [src, options?.volume]);
 
   /**
-   * Prime the audio system. Call from the FIRST user gesture
-   * (e.g. the initial card tap) to ensure iOS unlocks audio.
+   * Prime audio on a user gesture. Call this from the first tap
+   * (card tap) so iOS unlocks audio before we actually need it.
    */
   const prime = useCallback(() => {
-    getAudioContext();
+    // Create context if it doesn't exist yet, then resume it
+    getOrCreateContext();
     resumeContext();
 
-    const audio = fallbackAudioRef.current;
-    if (audio && audio.readyState < 2) {
+    // Also kick the fallback element's load
+    const audio = fallbackRef.current;
+    if (audio) {
       try {
         audio.load();
-      } catch {
-        // ignore
-      }
+      } catch { /* ignore */ }
     }
   }, []);
 
   /**
-   * Play the sound. Call directly inside an onClick/onTap handler.
-   * Tries AudioContext first, falls back to HTMLAudioElement.
+   * Play the sound. MUST be called directly inside an onClick / onTouchEnd
+   * handler for iOS reliability. Tries Web Audio first, HTML5 Audio fallback.
    */
   const play = useCallback(() => {
-    // Always try to resume in the same gesture
+    // Always resume in the same gesture tick
     resumeContext();
 
     const ctx = sharedCtx;
     const buffer = audioBufferRef.current;
 
-    // --- Primary: Web Audio API ---
-    if (ctx && buffer && ctx.state === "running") {
+    // ---- Primary: Web Audio API ----
+    // Don't gate on ctx.state — just try. If it's still resuming, the
+    // scheduled source will play once the context actually runs.
+    if (ctx && buffer) {
       try {
         const source = ctx.createBufferSource();
         source.buffer = buffer;
@@ -187,38 +170,36 @@ export function useSound(src: string, options?: UseSoundOptions) {
         gain.connect(ctx.destination);
 
         source.start(0);
-        return; // success
+        return; // success path
       } catch (err) {
-        console.warn("[useSound] AudioContext play failed, trying fallback", err);
+        console.warn("[useSound] Web Audio play failed:", err);
       }
     }
 
-    // --- Fallback: HTMLAudioElement ---
-    const audio = fallbackAudioRef.current;
+    // ---- Fallback: HTMLAudioElement ----
+    const audio = fallbackRef.current;
     if (!audio) return;
 
     try {
       audio.currentTime = 0;
-      const maybePromise = audio.play();
-      if (maybePromise && typeof maybePromise.then === "function") {
-        maybePromise.catch((err: unknown) => {
-          console.warn("[useSound] fallback play blocked or failed", err);
+      const p = audio.play();
+      if (p && typeof p.catch === "function") {
+        p.catch((err: unknown) => {
+          console.warn("[useSound] HTML5 Audio play failed:", err);
         });
       }
     } catch (err) {
-      console.warn("[useSound] fallback play error", err);
+      console.warn("[useSound] HTML5 Audio error:", err);
     }
   }, []);
 
   return { play, prime };
 }
 
-// ---- Helper ----
-
-function createFallbackElement(src: string, volume: number): HTMLAudioElement {
-  const audio = new Audio(src);
-  audio.preload = "auto";
-  audio.crossOrigin = "anonymous";
-  audio.volume = volume;
-  return audio;
+/** Create a plain HTMLAudioElement. No crossOrigin (same-origin resource). */
+function makeFallback(src: string, volume: number): HTMLAudioElement {
+  const a = new Audio(src);
+  a.preload = "auto";
+  a.volume = volume;
+  return a;
 }

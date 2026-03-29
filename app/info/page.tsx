@@ -24,13 +24,27 @@ const DEFAULT_CONFIG: PrankConfig = {
 const DEFAULT_SMS_TEMPLATE =
   "You received {amount} from {friendName} via Apple Pay.";
 
-// iOS-style shared styles
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
 
+// Hardcoded iOS colors for reliable inline styles
+const C = {
+  label: "#000000",
+  secondaryLabel: "rgba(60,60,67,0.6)",
+  bg: "#f2f2f7",
+  cardBg: "#ffffff",
+  separator: "rgba(60,60,67,0.29)",
+  blue: "#007aff",
+  green: "#34c759",
+  red: "#ff3b30",
+  gray3: "#c7c7cc",
+  gray5: "#e5e5ea",
+  gray6: "#f2f2f7",
+} as const;
+
 const sectionStyle: React.CSSProperties = {
   borderRadius: 10,
-  backgroundColor: "var(--ios-secondary-grouped-background)",
+  backgroundColor: C.cardBg,
   overflow: "hidden",
   marginBottom: 16,
 };
@@ -45,18 +59,18 @@ const rowStyle: React.CSSProperties = {
 
 const rowBorderStyle: React.CSSProperties = {
   ...rowStyle,
-  borderTop: "0.5px solid var(--ios-separator)",
+  borderTop: `0.5px solid ${C.separator}`,
 };
 
 const labelStyle: React.CSSProperties = {
   fontSize: 15,
-  color: "var(--ios-label)",
+  color: C.label,
   fontWeight: 400,
 };
 
 const hintStyle: React.CSSProperties = {
   fontSize: 13,
-  color: "var(--ios-secondary-label)",
+  color: C.secondaryLabel,
   lineHeight: 1.4,
 };
 
@@ -66,7 +80,7 @@ const inputStyle: React.CSSProperties = {
   fontSize: 17,
   padding: "4px 0",
   background: "transparent",
-  color: "var(--ios-label)",
+  color: C.label,
   fontFamily: FONT,
   width: "100%",
 };
@@ -82,7 +96,6 @@ export default function InfoPage() {
   const [maxAmount, setMaxAmount] = useState("50");
   const [startingBalance, setStartingBalance] = useState("105");
 
-  // SMS fields
   const [victimPhone, setVictimPhone] = useState("");
   const [sendSms, setSendSms] = useState(false);
   const [smsTemplate, setSmsTemplate] = useState(DEFAULT_SMS_TEMPLATE);
@@ -90,51 +103,23 @@ export default function InfoPage() {
   const [saving, setSaving] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
 
-  // Load saved config
   useEffect(() => {
     if (typeof window === "undefined") return;
-
     try {
       const raw = window.localStorage.getItem(CONFIG_STORAGE_KEY);
       if (!raw) return;
-
       const parsed: Partial<PrankConfig> = JSON.parse(raw);
 
       setPranksterName(parsed.pranksterName ?? DEFAULT_CONFIG.pranksterName);
       setFriendName(parsed.friendName ?? DEFAULT_CONFIG.friendName);
-
-      if (parsed.amountMode === "range") {
-        setAmountMode("range");
-      } else {
-        setAmountMode("fixed");
-      }
-
-      if (typeof parsed.fixedAmount === "number") {
-        setFixedAmount(parsed.fixedAmount.toFixed(2));
-      }
-
-      if (typeof parsed.minAmount === "number") {
-        setMinAmount(parsed.minAmount.toString());
-      }
-
-      if (typeof parsed.maxAmount === "number") {
-        setMaxAmount(parsed.maxAmount.toString());
-      }
-
-      if (typeof parsed.startingBalance === "number") {
-        setStartingBalance(parsed.startingBalance.toString());
-      }
-
-      // SMS fields
-      if (typeof parsed.victimPhone === "string") {
-        setVictimPhone(parsed.victimPhone);
-      }
-      if (typeof parsed.sendSms === "boolean") {
-        setSendSms(parsed.sendSms);
-      }
-      if (typeof parsed.smsTemplate === "string" && parsed.smsTemplate.trim()) {
-        setSmsTemplate(parsed.smsTemplate);
-      }
+      setAmountMode(parsed.amountMode === "range" ? "range" : "fixed");
+      if (typeof parsed.fixedAmount === "number") setFixedAmount(parsed.fixedAmount.toFixed(2));
+      if (typeof parsed.minAmount === "number") setMinAmount(parsed.minAmount.toString());
+      if (typeof parsed.maxAmount === "number") setMaxAmount(parsed.maxAmount.toString());
+      if (typeof parsed.startingBalance === "number") setStartingBalance(parsed.startingBalance.toString());
+      if (typeof parsed.victimPhone === "string") setVictimPhone(parsed.victimPhone);
+      if (typeof parsed.sendSms === "boolean") setSendSms(parsed.sendSms);
+      if (typeof parsed.smsTemplate === "string" && parsed.smsTemplate.trim()) setSmsTemplate(parsed.smsTemplate);
     } catch (err) {
       console.warn("[info] failed to load config", err);
     }
@@ -142,61 +127,42 @@ export default function InfoPage() {
 
   function handleSave() {
     setSaving(true);
-
-    const normalizedPrankster = pranksterName.trim() || DEFAULT_CONFIG.pranksterName;
-    const normalizedFriend = friendName.trim() || DEFAULT_CONFIG.friendName;
-
-    const fixed = parseFloat(fixedAmount || "0") || 0;
-    const min = parseFloat(minAmount || "0") || 0;
-    const max = parseFloat(maxAmount || "0") || 0;
-    const starting = parseFloat(startingBalance || "0") || 0;
-
     const config: PrankConfig = {
-      pranksterName: normalizedPrankster,
-      friendName: normalizedFriend,
+      pranksterName: pranksterName.trim() || DEFAULT_CONFIG.pranksterName,
+      friendName: friendName.trim() || DEFAULT_CONFIG.friendName,
       amountMode,
-      fixedAmount: fixed,
-      minAmount: min,
-      maxAmount: max,
-      startingBalance: starting,
+      fixedAmount: parseFloat(fixedAmount || "0") || 0,
+      minAmount: parseFloat(minAmount || "0") || 0,
+      maxAmount: parseFloat(maxAmount || "0") || 0,
+      startingBalance: parseFloat(startingBalance || "0") || 0,
       victimPhone: victimPhone.trim(),
       sendSms,
       smsTemplate: smsTemplate.trim() || DEFAULT_SMS_TEMPLATE,
     };
-
     if (typeof window !== "undefined") {
       window.localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(config));
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
     }
-
-    setTimeout(() => {
-      setSaving(false);
-      router.push("/");
-    }, 150);
+    setTimeout(() => { setSaving(false); router.push("/"); }, 150);
   }
 
   function handleResetWallet() {
     if (typeof window === "undefined") return;
-
     try {
       window.localStorage.removeItem(WALLET_STORAGE_KEY);
       setResetMessage("Card reset. Next time you open the wallet it will start fresh.");
       setTimeout(() => setResetMessage(null), 2500);
-    } catch (err) {
-      console.warn("[info] failed to reset wallet", err);
+    } catch {
       setResetMessage("Something went wrong. Try again.");
       setTimeout(() => setResetMessage(null), 2500);
     }
   }
 
-  // Preview text
   const previewAmount =
     amountMode === "fixed"
       ? `$${fixedAmount || "0.00"}`
       : `$${minAmount || "10"}\u2013$${maxAmount || "50"}`;
-
   const previewSender = friendName.trim() || DEFAULT_CONFIG.friendName;
-
   const smsPreview = (smsTemplate || DEFAULT_SMS_TEMPLATE)
     .replace("{amount}", previewAmount)
     .replace("{friendName}", previewSender);
@@ -205,7 +171,7 @@ export default function InfoPage() {
     <main
       style={{
         minHeight: "100vh",
-        backgroundColor: "var(--ios-grouped-background)",
+        backgroundColor: C.bg,
         padding: "0 16px 34px",
         paddingTop: "max(12px, env(safe-area-inset-top, 12px))",
         fontFamily: FONT,
@@ -224,7 +190,6 @@ export default function InfoPage() {
           }}
         >
           <div style={{ width: 56 }} />
-
           <div
             style={{
               position: "absolute",
@@ -234,22 +199,15 @@ export default function InfoPage() {
               pointerEvents: "none",
             }}
           >
-            <span
-              style={{
-                fontSize: 17,
-                fontWeight: 600,
-                color: "var(--ios-label)",
-              }}
-            >
+            <span style={{ fontSize: 17, fontWeight: 600, color: C.label }}>
               Settings
             </span>
           </div>
-
           <button
             onClick={handleSave}
             disabled={saving}
             style={{
-              backgroundColor: "var(--ios-system-blue)",
+              backgroundColor: C.blue,
               border: "none",
               color: "#ffffff",
               fontSize: 15,
@@ -271,7 +229,7 @@ export default function InfoPage() {
           style={{
             fontSize: 13,
             fontWeight: 400,
-            color: "var(--ios-secondary-label)",
+            color: C.secondaryLabel,
             textTransform: "uppercase",
             letterSpacing: 0.4,
             margin: "4px 0 8px 16px",
@@ -285,21 +243,21 @@ export default function InfoPage() {
           <div style={{ ...hintStyle, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 4, fontWeight: 500 }}>
             Preview
           </div>
-          <div style={{ fontSize: 17, lineHeight: 1.4, color: "var(--ios-label)" }}>
+          <div style={{ fontSize: 17, lineHeight: 1.4, color: C.label }}>
             You&apos;ll appear to receive {previewAmount} from {previewSender}.
           </div>
         </section>
 
         {/* Config card */}
         <section style={sectionStyle}>
-          {/* Amount mode toggle */}
+          {/* Amount mode */}
           <div style={rowStyle}>
             <div style={labelStyle}>Amount Mode</div>
             <div
               style={{
                 display: "inline-flex",
                 borderRadius: 8,
-                backgroundColor: "var(--ios-system-gray5)",
+                backgroundColor: C.gray5,
                 padding: 2,
                 marginTop: 4,
               }}
@@ -317,14 +275,9 @@ export default function InfoPage() {
                     fontWeight: 500,
                     cursor: "pointer",
                     fontFamily: FONT,
-                    backgroundColor:
-                      amountMode === mode ? "var(--ios-system-background)" : "transparent",
-                    color:
-                      amountMode === mode ? "var(--ios-label)" : "var(--ios-secondary-label)",
-                    boxShadow:
-                      amountMode === mode
-                        ? "0 1px 3px rgba(0,0,0,0.12)"
-                        : "none",
+                    backgroundColor: amountMode === mode ? C.cardBg : "transparent",
+                    color: amountMode === mode ? C.label : C.secondaryLabel,
+                    boxShadow: amountMode === mode ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
                   }}
                 >
                   {mode === "fixed" ? "Fixed" : "Range"}
@@ -336,12 +289,11 @@ export default function InfoPage() {
             </div>
           </div>
 
-          {/* Fixed amount */}
           {amountMode === "fixed" && (
             <div style={rowBorderStyle}>
               <div style={labelStyle}>Fixed amount</div>
               <div style={{ display: "flex", alignItems: "center" }}>
-                <span style={{ fontSize: 17, marginRight: 2, color: "var(--ios-label)" }}>$</span>
+                <span style={{ fontSize: 17, marginRight: 2, color: C.label }}>$</span>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -351,13 +303,10 @@ export default function InfoPage() {
                   style={inputStyle}
                 />
               </div>
-              <div style={hintStyle}>
-                The exact amount shown in the payment popup.
-              </div>
+              <div style={hintStyle}>The exact amount shown in the payment popup.</div>
             </div>
           )}
 
-          {/* Range */}
           {amountMode === "range" && (
             <div style={rowBorderStyle}>
               <div style={labelStyle}>Random range</div>
@@ -373,14 +322,12 @@ export default function InfoPage() {
                       display: "flex",
                       alignItems: "center",
                       borderRadius: 8,
-                      backgroundColor: "var(--ios-system-gray6)",
+                      backgroundColor: C.gray6,
                       padding: "4px 8px",
                     }}
                   >
-                    <span style={{ fontSize: 13, marginRight: 4, color: "var(--ios-secondary-label)" }}>
-                      {f.label}
-                    </span>
-                    <span style={{ fontSize: 17, marginRight: 2, color: "var(--ios-label)" }}>$</span>
+                    <span style={{ fontSize: 13, marginRight: 4, color: C.secondaryLabel }}>{f.label}</span>
+                    <span style={{ fontSize: 17, marginRight: 2, color: C.label }}>$</span>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -391,68 +338,38 @@ export default function InfoPage() {
                   </div>
                 ))}
               </div>
-              <div style={hintStyle}>
-                Each tap picks a new random amount in this range.
-              </div>
+              <div style={hintStyle}>Each tap picks a new random amount in this range.</div>
             </div>
           )}
 
-          {/* Friend's name */}
           <div style={rowBorderStyle}>
             <div style={labelStyle}>Friend&apos;s name (sender)</div>
-            <input
-              type="text"
-              placeholder="Apple Pay"
-              value={friendName}
-              onChange={(e) => setFriendName(e.target.value)}
-              style={inputStyle}
-            />
-            <div style={hintStyle}>
-              Who it looks like the money is coming from.
-            </div>
+            <input type="text" placeholder="Apple Pay" value={friendName} onChange={(e) => setFriendName(e.target.value)} style={inputStyle} />
+            <div style={hintStyle}>Who it looks like the money is coming from.</div>
           </div>
 
-          {/* Your name */}
           <div style={rowBorderStyle}>
             <div style={labelStyle}>Your name (receiver)</div>
-            <input
-              type="text"
-              placeholder="You"
-              value={pranksterName}
-              onChange={(e) => setPranksterName(e.target.value)}
-              style={inputStyle}
-            />
-            <div style={hintStyle}>
-              Who it looks like the money was sent to.
-            </div>
+            <input type="text" placeholder="You" value={pranksterName} onChange={(e) => setPranksterName(e.target.value)} style={inputStyle} />
+            <div style={hintStyle}>Who it looks like the money was sent to.</div>
           </div>
 
-          {/* Starting balance */}
           <div style={rowBorderStyle}>
             <div style={labelStyle}>Starting balance</div>
             <div style={{ display: "flex", alignItems: "center" }}>
-              <span style={{ fontSize: 17, marginRight: 2, color: "var(--ios-label)" }}>$</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={startingBalance}
-                onChange={(e) => setStartingBalance(e.target.value)}
-                placeholder="105"
-                style={inputStyle}
-              />
+              <span style={{ fontSize: 17, marginRight: 2, color: C.label }}>$</span>
+              <input type="text" inputMode="decimal" value={startingBalance} onChange={(e) => setStartingBalance(e.target.value)} placeholder="105" style={inputStyle} />
             </div>
-            <div style={hintStyle}>
-              Balance shown on the card before any pranks (or after reset).
-            </div>
+            <div style={hintStyle}>Balance shown on the card before any pranks (or after reset).</div>
           </div>
         </section>
 
-        {/* ---- SMS Prank Section ---- */}
+        {/* SMS Section */}
         <div
           style={{
             fontSize: 13,
             fontWeight: 400,
-            color: "var(--ios-secondary-label)",
+            color: C.secondaryLabel,
             textTransform: "uppercase",
             letterSpacing: 0.4,
             margin: "4px 0 8px 16px",
@@ -462,7 +379,6 @@ export default function InfoPage() {
         </div>
 
         <section style={sectionStyle}>
-          {/* Toggle */}
           <div
             style={{
               ...rowStyle,
@@ -480,7 +396,7 @@ export default function InfoPage() {
                 height: 31,
                 borderRadius: 16,
                 border: "none",
-                backgroundColor: sendSms ? "var(--ios-system-green)" : "var(--ios-system-gray5)",
+                backgroundColor: sendSms ? C.green : C.gray5,
                 position: "relative",
                 cursor: "pointer",
                 transition: "background-color 0.2s ease",
@@ -505,23 +421,12 @@ export default function InfoPage() {
 
           {sendSms && (
             <>
-              {/* Phone number */}
               <div style={rowBorderStyle}>
                 <div style={labelStyle}>Victim&apos;s phone number</div>
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="+1 (555) 123-4567"
-                  value={victimPhone}
-                  onChange={(e) => setVictimPhone(e.target.value)}
-                  style={inputStyle}
-                />
-                <div style={hintStyle}>
-                  The person who will receive the text when you trigger the prank.
-                </div>
+                <input type="tel" inputMode="tel" placeholder="+1 (555) 123-4567" value={victimPhone} onChange={(e) => setVictimPhone(e.target.value)} style={inputStyle} />
+                <div style={hintStyle}>The person who will receive the text when you trigger the prank.</div>
               </div>
 
-              {/* Message template */}
               <div style={rowBorderStyle}>
                 <div style={labelStyle}>Message template</div>
                 <textarea
@@ -529,20 +434,13 @@ export default function InfoPage() {
                   onChange={(e) => setSmsTemplate(e.target.value)}
                   placeholder={DEFAULT_SMS_TEMPLATE}
                   rows={3}
-                  style={{
-                    ...inputStyle,
-                    resize: "none",
-                    fontSize: 15,
-                    lineHeight: 1.4,
-                  }}
+                  style={{ ...inputStyle, resize: "none", fontSize: 15, lineHeight: 1.4 }}
                 />
                 <div style={hintStyle}>
-                  Use <strong>{"{amount}"}</strong> and <strong>{"{friendName}"}</strong> as
-                  placeholders. They&apos;ll be replaced with the actual values.
+                  Use <strong>{"{amount}"}</strong> and <strong>{"{friendName}"}</strong> as placeholders.
                 </div>
               </div>
 
-              {/* SMS Preview */}
               <div style={rowBorderStyle}>
                 <div style={{ ...hintStyle, textTransform: "uppercase", letterSpacing: 0.4, fontWeight: 500, marginBottom: 2 }}>
                   SMS Preview
@@ -550,8 +448,8 @@ export default function InfoPage() {
                 <div
                   style={{
                     fontSize: 15,
-                    color: "var(--ios-label)",
-                    backgroundColor: "var(--ios-system-gray6)",
+                    color: C.label,
+                    backgroundColor: C.gray6,
                     borderRadius: 8,
                     padding: "8px 10px",
                     lineHeight: 1.4,
@@ -564,7 +462,7 @@ export default function InfoPage() {
           )}
         </section>
 
-        {/* ---- Reset & Disclaimer ---- */}
+        {/* Reset & Disclaimer */}
         <section style={sectionStyle}>
           <button
             type="button"
@@ -581,48 +479,20 @@ export default function InfoPage() {
               fontFamily: FONT,
             }}
           >
-            <span
-              style={{
-                fontSize: 17,
-                color: "var(--ios-system-red)",
-                fontWeight: 400,
-              }}
-            >
+            <span style={{ fontSize: 17, color: C.red, fontWeight: 400 }}>
               Reset Card & History
             </span>
-            <span style={{ fontSize: 13, color: "var(--ios-system-gray3)" }}>
-              {"\u203A"}
-            </span>
+            <span style={{ fontSize: 13, color: C.gray3 }}>{"\u203A"}</span>
           </button>
 
           {resetMessage && (
-            <div style={{ padding: "0 16px 12px", ...hintStyle }}>
-              {resetMessage}
-            </div>
+            <div style={{ padding: "0 16px 12px", ...hintStyle }}>{resetMessage}</div>
           )}
 
-          <div
-            style={{
-              height: 0.5,
-              backgroundColor: "var(--ios-separator)",
-              margin: "0 16px",
-            }}
-          />
+          <div style={{ height: 0.5, backgroundColor: C.separator, margin: "0 16px" }} />
 
-          <div
-            style={{
-              padding: "12px 16px 14px",
-              ...hintStyle,
-              lineHeight: 1.5,
-            }}
-          >
-            <div
-              style={{
-                fontWeight: 600,
-                marginBottom: 4,
-                color: "var(--ios-secondary-label)",
-              }}
-            >
+          <div style={{ padding: "12px 16px 14px", ...hintStyle, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4, color: C.secondaryLabel }}>
               About this app
             </div>
             This is a visual prank tool only. No real money is being sent or
