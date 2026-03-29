@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSound } from "@/lib/useSound";
+import { useHaptic } from "@/lib/useHaptic";
 import { Avatar } from "@/components/Avatar";
 import { WelcomeModal } from "@/components/WelcomeModal";
 import type { PrankConfig, Transaction } from "@/lib/types";
@@ -66,6 +67,7 @@ function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; siz
 export function WalletScreen() {
   const router = useRouter();
   const { play, prime } = useSound("/ding.mp3");
+  const { vibrate } = useHaptic();
 
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [balance, setBalance] = useState(BASE_BALANCE);
@@ -149,6 +151,7 @@ export function WalletScreen() {
     // Immediately flip to success — the circle stays, icon morphs inside it
     setPhase("success");
     play();
+    vibrate([10, 80, 40]); // short buzz → pause → firm thud
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
 
