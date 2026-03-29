@@ -19,11 +19,11 @@ const DEFAULT_CONFIG: PrankConfig = {
   startingBalance: 145.67,
   victimPhone: "",
   sendSms: false,
-  smsTemplate: "You sent {amount} to {friendName}.\n\n\n\n\n-",
+  smsTemplate: "You sent {amount} to {name}.\n\n\n\n\n-",
 };
 
 const DEFAULT_SMS_TEMPLATE =
-  "You sent {amount} to {friendName}.\n\n\n\n\n-";
+  "You sent {amount} to {name}.\n\n\n\n\n-";
 
 const FONT =
   '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif';
@@ -145,6 +145,7 @@ export default function InfoPage() {
     if (sendSms && victimPhone.trim()) {
       const previewMsg = (smsTemplate || DEFAULT_SMS_TEMPLATE)
         .replace("{amount}", amountMode === "fixed" ? `$${fixedAmount || "0.00"}` : "$XX.XX")
+        .replace("{name}", pranksterName.trim() || DEFAULT_CONFIG.pranksterName)
         .replace("{friendName}", friendName.trim() || DEFAULT_CONFIG.friendName);
       const ok = window.confirm(
         `SMS will be sent to ${victimPhone.trim()} when the prank triggers.\n\nMessage preview:\n"${previewMsg}"\n\nIs this correct?`
@@ -209,6 +210,7 @@ export default function InfoPage() {
   const previewSender = friendName.trim() || DEFAULT_CONFIG.friendName;
   const smsPreview = (smsTemplate || DEFAULT_SMS_TEMPLATE)
     .replace("{amount}", previewAmount)
+    .replace("{name}", pranksterName.trim() || DEFAULT_CONFIG.pranksterName)
     .replace("{friendName}", previewSender);
 
   return (
@@ -553,7 +555,7 @@ export default function InfoPage() {
                   style={{ ...inputStyle, resize: "none", fontSize: 15, lineHeight: 1.4 }}
                 />
                 <div style={hintStyle}>
-                  Use <strong>{"{amount}"}</strong> and <strong>{"{friendName}"}</strong> as placeholders.
+                  Use <strong>{"{amount}"}</strong>, <strong>{"{name}"}</strong> (cardholder), and <strong>{"{friendName}"}</strong> (sender) as placeholders.
                 </div>
               </div>
 
