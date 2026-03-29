@@ -125,7 +125,7 @@ export function WalletScreen() {
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
     if (config.sendSms && config.victimPhone) {
-      const msg = (config.smsTemplate || "APPLE PAY PRANK: You sent {amount} to {friendName}")
+      const msg = (config.smsTemplate || "INTERACT e-Transfer: {amount} (CAD) has been deposited to {friendName} from your account.")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
 
