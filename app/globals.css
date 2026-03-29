@@ -82,7 +82,7 @@ body {
   width: 64px;
   height: 64px;
   border-radius: 9999px;
-  background-color: rgba(52, 199, 89, 0.15);
+  background-color: rgba(0, 122, 255, 0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -90,7 +90,7 @@ body {
 }
 .applepay-check-svg { width: 32px; height: 32px; }
 .applepay-check-path {
-  stroke: #34c759;
+  stroke: #007aff;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -139,6 +139,32 @@ body {
 @keyframes payContentIn {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Wallet sections show/hide ---------- */
+.wallet-sections-enter {
+  animation: walletSectionsIn 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.0) both;
+}
+@keyframes walletSectionsIn {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.wallet-sections-exit {
+  animation: walletSectionsOut 0.22s ease-in both;
+  pointer-events: none;
+}
+@keyframes walletSectionsOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(10px); }
+}
+
+/* ---------- Success tx widget ---------- */
+.success-tx-widget {
+  animation: successWidgetIn 0.4s cubic-bezier(0.2, 0.9, 0.3, 1.1) 0.1s both;
+}
+@keyframes successWidgetIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* ---------- Pending → Success morph ---------- */

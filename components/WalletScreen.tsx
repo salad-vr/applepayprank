@@ -76,8 +76,13 @@ export function WalletScreen() {
   const [smsToast, setSmsToast] = useState<{ message: string; success: boolean } | null>(null);
   const [showWelcome, setShowWelcome] = useState(false);
   const [morphing, setMorphing] = useState(false);
+  // Controls whether the wallet sections (buttons + tx list) are rendered/visible
+  // "visible" = fully shown, "exiting" = playing exit anim, "hidden" = unmounted
+  const [sectionsState, setSectionsState] = useState<"visible" | "exiting" | "hidden">("visible");
+  const [sectionsKey, setSectionsKey] = useState(0);
   const timer = useRef<number | null>(null);
   const morphTimer = useRef<number | null>(null);
+  const sectionsTimer = useRef<number | null>(null);
   const smsToastTimer = useRef<number | null>(null);
 
   function genAmount(c: PrankConfig) {
@@ -110,6 +115,7 @@ export function WalletScreen() {
     if (timer.current) clearTimeout(timer.current);
     if (smsToastTimer.current) clearTimeout(smsToastTimer.current);
     if (morphTimer.current) clearTimeout(morphTimer.current);
+    if (sectionsTimer.current) clearTimeout(sectionsTimer.current);
   }, []);
 
   function showSmsToast(message: string, success: boolean) {
@@ -131,7 +137,13 @@ export function WalletScreen() {
     if (phase !== "hidden") return;
     prime();
     setAmount(genAmount(config));
-    setPhase("pending");
+    // Animate sections out first, then show pending overlay
+    setSectionsState("exiting");
+    if (sectionsTimer.current) clearTimeout(sectionsTimer.current);
+    sectionsTimer.current = window.setTimeout(() => {
+      setSectionsState("hidden");
+      setPhase("pending");
+    }, 220);
   }
 
   function onOverlayTap() {
@@ -177,9 +189,13 @@ export function WalletScreen() {
         });
     }
 
-    setPhase("success");
     if (timer.current) clearTimeout(timer.current);
-    timer.current = window.setTimeout(() => { setPhase("hidden"); setAmount(null); }, 3500);
+    timer.current = window.setTimeout(() => {
+      setPhase("hidden");
+      setAmount(null);
+      setSectionsKey(k => k + 1);
+      setSectionsState("visible");
+    }, 3500);
   }
 
   const holder = config.pranksterName || "Cash";
@@ -242,8 +258,8 @@ export function WalletScreen() {
           </div>
         </section>
 
-        {!isActive && (
-          <>
+        {sectionsState !== "hidden" && (
+          <div key={sectionsKey} className={sectionsState === "exiting" ? "wallet-sections-exit" : sectionsKey > 0 ? "wallet-sections-enter" : undefined}>
             <section style={{ display: "flex", justifyContent: "center", gap: 28, marginBottom: 22 }}>
               {[{ l: "Send", i: "\u2191" }, { l: "Request", i: "\u2193" }, { l: "Add Money", i: "+" }].map(b => (
                 <div key={b.l} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
@@ -276,11 +292,11 @@ export function WalletScreen() {
                 ))}
               </div>
             </section>
-          </>
+          </div>
         )}
 
         {isActive && (
-          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 48, minHeight: 160, position: "relative" }}>
+          <div className="pay-content-fade" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 36, minHeight: 160, position: "relative" }}>
 
             {/* Pending state — exits with morph-out animation when tapped */}
             {(phase === "pending" || morphing) && (
@@ -304,18 +320,33 @@ export function WalletScreen() {
 
             {/* Success state — enters with morph-in animation */}
             {phase === "success" && !morphing && (
-              <div className="pay-phase-in" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+              <div className="pay-phase-in" style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%" }}>
+                {/* Check + Done */}
                 <div className="applepay-check-circle" style={{ width: 68, height: 68, marginBottom: 14 }}>
                   <svg className="applepay-check-svg" viewBox="0 0 32 32" style={{ width: 34, height: 34 }}>
                     <path className="applepay-check-path" d="M9 17 L14 22 L23 11" />
                   </svg>
                 </div>
-                <div style={{ fontSize: 17, fontWeight: 600, color: C.green, marginBottom: 10, letterSpacing: 0.1 }}>Done</div>
-                <div style={{ fontSize: 36, fontWeight: 700, color: C.label, letterSpacing: "-0.02em", marginBottom: 4 }}>
-                  ${amount != null ? amount.toFixed(2) : "0.00"}
-                </div>
-                <div style={{ fontSize: 15, color: C.secondaryLabel }}>
-                  from {config.friendName || "Friend"}
+                <div style={{ fontSize: 17, fontWeight: 600, color: C.blue, marginBottom: 20, letterSpacing: 0.1 }}>Done</div>
+
+                {/* iOS transaction widget */}
+                <div className="success-tx-widget" style={{ width: "100%", borderRadius: 14, backgroundColor: C.white, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+                  <div style={{ display: "flex", alignItems: "center", padding: "14px 16px" }}>
+                    <div style={{ marginRight: 12, flexShrink: 0 }}>
+                      <Avatar name={config.friendName || "Friend"} size={42} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 16, fontWeight: 500, color: C.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 2 }}>
+                        {config.friendName || "Friend"}
+                      </div>
+                      <div style={{ fontSize: 13, color: C.secondaryLabel }}>Received · just now</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 10 }}>
+                      <div style={{ fontSize: 18, fontWeight: 600, color: C.green }}>
+                        +${amount != null ? amount.toFixed(2) : "0.00"}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
