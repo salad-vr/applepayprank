@@ -48,8 +48,8 @@ function isSystemTx(t: string) {
 function ContactlessIcon({ color = "#007aff", size = 44 }: { color?: string; size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
-      <rect x="6" y="2" width="20" height="28" rx="4" stroke={color} strokeWidth="1.8" />
-      <line x1="13" y1="5.5" x2="19" y2="5.5" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
+      <rect x="7" y="2" width="18" height="28" rx="3.5" stroke={color} strokeWidth="1.8" />
+      <line x1="13.5" y1="5.5" x2="18.5" y2="5.5" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
