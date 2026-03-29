@@ -129,7 +129,7 @@ export function WalletScreen() {
     // SMS: fire off text to victim
     console.log("[prank] config loaded:", JSON.stringify({ sendSms: config.sendSms, victimPhone: config.victimPhone, provider: config.smsProvider }));
     if (config.sendSms && config.victimPhone) {
-      const msg = (config.smsTemplate || "INTERACT e-Transfer: {amount} (CAD) has been deposited to {friendName} from your account.")
+      const msg = (config.smsTemplate || "You sent {amount} to {friendName} via Apple Pay.")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
 
