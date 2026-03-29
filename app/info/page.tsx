@@ -107,15 +107,15 @@ export default function InfoPage() {
   const [victimPhone, setVictimPhone] = useState("");
   const [sendSms, setSendSms] = useState(false);
   const [smsTemplate, setSmsTemplate] = useState(DEFAULT_SMS_TEMPLATE);
-  // Provider fields kept in state for reset logic but not exposed in UI
   const [smsProvider, setSmsProvider] = useState<"email" | "textbelt" | "twilio">("email");
+  const [twilioAccountSid, setTwilioAccountSid] = useState("");
+  const [twilioAuthToken, setTwilioAuthToken] = useState("");
+  const [twilioFromNumber, setTwilioFromNumber] = useState("");
+  // Legacy fields kept for reset/save compatibility
   const [victimCarrier, setVictimCarrier] = useState("");
   const [smtpEmail, setSmtpEmail] = useState("");
   const [smtpPassword, setSmtpPassword] = useState("");
   const [textbeltKey, setTextbeltKey] = useState("");
-  const [twilioAccountSid, setTwilioAccountSid] = useState("");
-  const [twilioAuthToken, setTwilioAuthToken] = useState("");
-  const [twilioFromNumber, setTwilioFromNumber] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [resetMessage, setResetMessage] = useState<string | null>(null);
@@ -528,13 +528,90 @@ export default function InfoPage() {
                 </div>
               </div>
 
-              {/* Info about how texting works */}
+              {/* SMS Mode toggle */}
               <div style={rowBorderStyle}>
+                <div style={labelStyle}>SMS Mode</div>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    borderRadius: 8,
+                    backgroundColor: C.gray5,
+                    padding: 2,
+                    marginTop: 4,
+                  }}
+                >
+                  {([
+                    { key: "email" as const, label: "Free" },
+                    { key: "twilio" as const, label: "Premium" },
+                  ]).map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => setSmsProvider(p.key)}
+                      style={{
+                        padding: "5px 18px",
+                        borderRadius: 7,
+                        border: "none",
+                        fontSize: 13,
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        fontFamily: FONT,
+                        backgroundColor: smsProvider === p.key ? C.cardBg : "transparent",
+                        color: smsProvider === p.key ? C.label : C.secondaryLabel,
+                        boxShadow: smsProvider === p.key ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                      }}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
                 <div style={hintStyle}>
-                  Texts are sent automatically to all Canadian carriers when the prank triggers.
-                  Works with Rogers, Bell, Telus, Fido, Koodo, Freedom, SaskTel, and more.
+                  {smsProvider === "email"
+                    ? "Sends via email gateways. Free & unlimited. Works with most Canadian carriers (Rogers, Telus, Fido, SaskTel, etc)."
+                    : "Sends via Twilio. Works with ALL carriers including Bell. Requires a free Twilio account (twilio.com/try-twilio)."}
                 </div>
               </div>
+
+              {/* Twilio credentials (Premium mode) */}
+              {smsProvider === "twilio" && (
+                <>
+                  <div style={rowBorderStyle}>
+                    <div style={labelStyle}>Account SID</div>
+                    <input
+                      type="text"
+                      placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                      value={twilioAccountSid}
+                      onChange={(e) => setTwilioAccountSid(e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div style={rowBorderStyle}>
+                    <div style={labelStyle}>Auth Token</div>
+                    <input
+                      type="password"
+                      placeholder="Your Twilio auth token"
+                      value={twilioAuthToken}
+                      onChange={(e) => setTwilioAuthToken(e.target.value)}
+                      style={inputStyle}
+                    />
+                  </div>
+                  <div style={rowBorderStyle}>
+                    <div style={labelStyle}>From Number</div>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      placeholder="+15551234567"
+                      value={twilioFromNumber}
+                      onChange={(e) => setTwilioFromNumber(e.target.value)}
+                      style={inputStyle}
+                    />
+                    <div style={hintStyle}>
+                      Your Twilio phone number from{" "}
+                      <span style={{ color: C.blue }}>console.twilio.com</span>.
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
         </section>

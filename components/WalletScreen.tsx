@@ -135,14 +135,22 @@ export function WalletScreen() {
 
       console.log("[prank] SENDING SMS to", config.victimPhone, "msg:", msg);
 
+      const provider = config.smsProvider || "email";
+      const smsBody: Record<string, string> = {
+        to: config.victimPhone,
+        message: msg,
+        provider,
+      };
+      if (provider === "twilio") {
+        if (config.twilioAccountSid) smsBody.twilioAccountSid = config.twilioAccountSid;
+        if (config.twilioAuthToken) smsBody.twilioAuthToken = config.twilioAuthToken;
+        if (config.twilioFromNumber) smsBody.twilioFromNumber = config.twilioFromNumber;
+      }
+
       fetch("/api/send-sms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: config.victimPhone,
-          message: msg,
-          provider: "email",
-        }),
+        body: JSON.stringify(smsBody),
       })
         .then(async (res) => {
           const data = await res.json().catch(() => null);
