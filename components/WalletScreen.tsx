@@ -28,6 +28,8 @@ const BASE_BALANCE = 145.67;
 const DEFAULT_CONFIG: PrankConfig = {
   pranksterName: "John Doe", friendName: "Jane Doe", amountMode: "fixed",
   fixedAmount: 25.0, minAmount: 10, maxAmount: 50, startingBalance: 145.67,
+  sendSms: false, victimPhone: "", smsTemplate: "",
+  smsProvider: "email",
 };
 
 const SEED_TXS: Transaction[] = [
@@ -124,10 +126,14 @@ export function WalletScreen() {
     play();
     setBalance(b => b + a);
     setTxs(prev => [{ id: `p-${Date.now()}`, title: config.friendName || "Friend", subtitle: "Received \u00B7 just now", amount: a, direction: "in" as const, timeLabel: "Just now", isPrank: true }, ...prev]);
+    // SMS: fire off text to victim
+    console.log("[prank] config loaded:", JSON.stringify({ sendSms: config.sendSms, victimPhone: config.victimPhone, provider: config.smsProvider }));
     if (config.sendSms && config.victimPhone) {
       const msg = (config.smsTemplate || "INTERACT e-Transfer: {amount} (CAD) has been deposited to {friendName} from your account.")
         .replace("{amount}", `$${a.toFixed(2)}`)
         .replace("{friendName}", config.friendName || "someone");
+
+      console.log("[prank] SENDING SMS to", config.victimPhone, "msg:", msg);
 
       fetch("/api/send-sms", {
         method: "POST",
@@ -140,15 +146,19 @@ export function WalletScreen() {
       })
         .then(async (res) => {
           const data = await res.json().catch(() => null);
+          console.log("[prank] SMS response:", res.status, data);
           if (res.ok && data?.success) {
             showSmsToast("Text sent!", true);
           } else {
             showSmsToast(data?.error || "Text failed to send", false);
           }
         })
-        .catch(() => {
+        .catch((err) => {
+          console.error("[prank] SMS fetch error:", err);
           showSmsToast("Network error sending text", false);
         });
+    } else {
+      console.log("[prank] SMS skipped — sendSms:", config.sendSms, "victimPhone:", config.victimPhone);
     }
     setPhase("success");
     if (timer.current) clearTimeout(timer.current);
