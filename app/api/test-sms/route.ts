@@ -6,12 +6,11 @@ import { NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
 const CANADIAN_GATEWAYS = [
-  "pcs.rogers.com",
-  "txt.bell.ca",
-  "msg.telus.com",
-  "txt.freedommobile.ca",
-  "sms.sasktel.com",
-  "pcs.eastlink.ca",
+  "pcs.rogers.com", "sms.rogers.com", "fido.ca", "txt.fido.ca",
+  "txt.bell.ca", "txt.bellmobility.ca", "text.mts.net",
+  "msg.telus.com", "msg.koodomobile.com",
+  "txt.freedommobile.ca", "txt.windmobile.ca", "sms.videotron.ca",
+  "sms.sasktel.com", "pcs.eastlink.ca", "txt.eastlink.ca", "mobiletxt.ca",
 ];
 
 export async function GET(request: Request) {

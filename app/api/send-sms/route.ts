@@ -15,12 +15,27 @@ import nodemailer from "nodemailer";
 /*  carrier while avoiding duplicate delivery.                         */
 /* ------------------------------------------------------------------ */
 const CANADIAN_GATEWAYS = [
-  "pcs.rogers.com",        // Rogers network (Rogers, Fido, Chatr)
-  "txt.bell.ca",           // Bell network (Bell, Virgin Plus, Lucky)
-  "msg.telus.com",         // Telus network (Telus, Koodo, Public Mobile)
-  "txt.freedommobile.ca",  // Freedom Mobile (independent)
-  "sms.sasktel.com",       // SaskTel (independent, Saskatchewan)
-  "pcs.eastlink.ca",       // Eastlink (independent, Maritimes)
+  // Rogers network
+  "pcs.rogers.com",
+  "sms.rogers.com",
+  "fido.ca",
+  "txt.fido.ca",
+  // Bell network
+  "txt.bell.ca",
+  "txt.bellmobility.ca",
+  "text.mts.net",
+  // Telus network
+  "msg.telus.com",
+  "msg.koodomobile.com",
+  // Freedom / Videotron
+  "txt.freedommobile.ca",
+  "txt.windmobile.ca",
+  "sms.videotron.ca",
+  // Regional / Independent
+  "sms.sasktel.com",
+  "pcs.eastlink.ca",
+  "txt.eastlink.ca",
+  "mobiletxt.ca",
 ];
 
 function toTenDigit(raw: string): string {
